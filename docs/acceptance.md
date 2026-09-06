@@ -8,7 +8,7 @@ The emulator tests do not establish manufacturer-specific battery behavior.
 - Install the same APK on all three phones; record Android versions and CPU ABIs.
 - Choose sharing mode only on the grandfather's phone. Verify that caregiver mode
   requests no location, SMS or notification permissions and starts no service.
-- Pair both caregivers using trusted public codes. An unapproved phone must not
+- Pair both caregivers using one QR scan and matching verification codes. An unapproved phone must not
   receive even an empty history/status response.
 - Start monitoring with all optional features off; verify the visible notification
   and manual check-in. Pause from both the app and notification.
@@ -19,21 +19,24 @@ The emulator tests do not establish manufacturer-specific battery behavior.
 
 ## In-app QR pairing
 
-- On each phone, open **Phones → Show my QR code** and scan it from the other
-  phone using **Scan other phone's QR**. Confirm both directions, for each caregiver.
+- On the sharing phone, tap **Phones → Connect a caregiver**. Scan once from the
+  caregiver's **Phones → Scan QR**. Compare the four-character code and confirm
+  only on the sharing phone. Verify both phones connect and receive a check-in.
+- Repeat for a second caregiver while sharing is already active.
 - Scan in portrait and landscape, under normal and dim lighting, and with larger
-  Android font/display settings. Check that the QR, camera frame, and Cancel remain usable.
-- Verify that scanning fills the code but does not add a peer until the name,
-  confirmation and Add/Approve action are completed.
-- Change a scanned/pasted code after confirming; approval must reset.
-- Cancel/back, scan an unrelated QR, and scan the phone's own code. The existing
-  pairing form and paired-phone list must remain intact.
-- Deny Camera, then deny permanently. Manual copy/share/paste must still work.
-  Allow Camera in settings and retry. No camera permission is needed to show a QR.
-- Background/lock the scanner, rotate, and return. The camera must not keep running
-  in the background, and the name/code draft must survive activity recreation.
-- Install 0.1.1 over the published 0.1.0 APK without uninstalling. Verify the role,
-  public identity, approved phones and retained history remain unchanged.
+  Android font/display settings. Check that QR, code and action buttons remain usable.
+- Verify a scan alone grants no access. Reject from each phone in turn, including
+  while an approval is arriving. A fresh connection should not be saved.
+- Disconnect briefly before confirmation and during the final save. Reconnection
+  must retain the code and avoid duplicate phones; after expiry use a new QR.
+- Cancel/back, scan an unrelated or old QR, and try a self-invitation. No existing
+  paired phones should change. Wait five minutes and verify the old QR expires.
+- Deny Camera, then deny permanently. Copy/share/paste must still work, followed by
+  the same code comparison. No camera permission is needed on the sharing phone.
+- Background/lock the scanner, rotate, and return. The camera must stop in the
+  background; rotation must preserve the name, invitation and active request.
+- After installation with the same signing key, verify existing identities, peers
+  and history survive. Never uninstall a family phone to bypass a signing mismatch.
 
 ## Three-phone catch-up
 

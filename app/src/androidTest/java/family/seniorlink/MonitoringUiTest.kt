@@ -10,6 +10,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.rule.GrantPermissionRule
 import family.seniorlink.core.Kind
+import family.seniorlink.core.Role
 import family.seniorlink.monitor.MonitorService
 import org.junit.Assert.*
 import org.junit.Rule
@@ -24,14 +25,16 @@ class MonitoringUiTest {
     )
 
     @Test fun visibleSharingCheckInBackgroundAndPause() {
+        val app = compose.activity.application as SeniorApp
         compose.waitUntil(15_000) {
-            compose.onAllNodesWithText("Share my information").fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodesWithText("Share my information").fetchSemanticsNodes().isNotEmpty() ||
+                compose.onAllNodesWithText("Start sharing").fetchSemanticsNodes().isNotEmpty()
         }
-        compose.onNodeWithText("Share my information").performClick()
+        if (app.store.settings.role == Role.UNSET) compose.onNodeWithText("Share my information").performClick()
         compose.waitUntil(10_000) {
             compose.onAllNodesWithText("Start sharing").fetchSemanticsNodes().isNotEmpty()
         }
-        val app = compose.activity.application as SeniorApp
+        assertEquals(Role.SHARER, app.store.settings.role)
         assertFalse(app.store.settings.sms)
         assertFalse(app.store.settings.smsBodies)
         assertFalse(app.store.settings.location)

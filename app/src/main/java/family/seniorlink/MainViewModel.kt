@@ -10,6 +10,7 @@ import family.seniorlink.data.StoredEvent
 import family.seniorlink.monitor.MonitorService
 import family.seniorlink.net.IrohSync
 import family.seniorlink.net.Telegram
+import family.seniorlink.pairing.PairingController
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
@@ -29,6 +30,7 @@ data class ScreenState(
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     val app = application as SeniorApp
     val screen = MutableStateFlow(ScreenState())
+    val pairing = PairingController(viewModelScope, app.store) { app.identity }
     private val monitorIntent = Intent(app, MonitorService::class.java)
     private var visible = false
     private var receiverJob: Job? = null
@@ -114,9 +116,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         message("Settings saved")
     }
 
-    fun addPeer(code: String, name: String) = action {
-        app.store.addPeer(Pairing.parse(code), name.trim(), app.publicId)
-        message("Saved on this phone. On the other phone, open Phones → Scan other phone's QR and scan this phone's code, then confirm there too. Once both are saved, tap Start sharing on the sharing phone.")
+    fun showPairingQr(name: String) {
+        try { pairing.showQr(name) } catch (e: IllegalArgumentException) { message(e.message) }
+    }
+
+    fun scanPairing(code: String, name: String) {
+        try { pairing.connect(code, name, app.publicId) }
+        catch (e: IllegalArgumentException) { message(e.message) }
+        catch (_: Exception) { message("This QR could not be read. Show a new QR on the sharing phone and try again.") }
     }
 
     fun removePeer(id: String) = action { app.store.removePeer(id) }

@@ -1,9 +1,6 @@
 package family.seniorlink
 
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Intent
-import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings as AndroidSettings
@@ -13,31 +10,25 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.google.zxing.BarcodeFormat
-import com.google.zxing.MultiFormatWriter
-import com.google.zxing.client.android.Intents
-import com.journeyapps.barcodescanner.ScanContract
 import family.seniorlink.core.*
 import family.seniorlink.data.StoredEvent
+import family.seniorlink.pairing.ConnectionSetup
+import family.seniorlink.pairing.ConnectionDialog
 import family.seniorlink.monitor.MonitorService
-import family.seniorlink.pairing.PairingScannerActivity
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -158,7 +149,7 @@ private fun SeniorScreen(model: MainViewModel) {
                                 SharingSettings(state, running, telegramStatus, model)
                             } else Panel("Caregiver mode") {
                                 Text("This phone does not collect its own location, unlock activity or SMS.")
-                                Text("No background service or push notifications. Networking stops when you leave the app.")
+                                Text("Updates sync while this app is open. A connection invitation can stay active for up to 5 minutes.")
                             }
                             Panel("Privacy and reliability") {
                                 Text("History stays on these phones for up to 7 days, capped at 10,000 events per source. The latest 100 are shown here.")
@@ -174,6 +165,7 @@ private fun SeniorScreen(model: MainViewModel) {
             }
         }
     }
+    ConnectionDialog(model)
     state.message?.let { text ->
         AlertDialog(onDismissRequest = { model.message(null) }, title = { Text("SeniorLink") },
             text = { Text(text) }, confirmButton = { TextButton(onClick = { model.message(null) }) { Text("OK") } })
@@ -182,107 +174,25 @@ private fun SeniorScreen(model: MainViewModel) {
 
 @Composable
 private fun Phones(state: ScreenState, model: MainViewModel) {
-    val context = LocalContext.current
-    var code by rememberSaveable { mutableStateOf("") }
-    var name by rememberSaveable { mutableStateOf("") }
-    var confirmed by rememberSaveable { mutableStateOf(false) }
-    var showingCode by rememberSaveable { mutableStateOf(false) }
-    var cameraDenied by rememberSaveable { mutableStateOf(false) }
     var removing by remember { mutableStateOf<Peer?>(null) }
-    val scanner = rememberLauncherForActivityResult(ScanContract()) { result ->
-        val scanned = result.contents
-        cameraDenied = result.originalIntent?.getBooleanExtra(Intents.Scan.MISSING_CAMERA_PERMISSION, false) == true
-        if (scanned != null) {
-            try {
-                // A scan only fills the draft. It must never approve a phone.
-                code = Pairing.code(Pairing.parsePeer(scanned, state.publicId))
-                confirmed = false
-            } catch (error: IllegalArgumentException) {
-                model.message(error.message)
-            }
-        }
-        // Back/cancel or a camera error leaves the existing draft untouched.
-    }
-    Panel(if (state.settings.role == Role.SHARER) "Approve a caregiver" else "Add the sharing phone") {
-        Text("Link in both directions: scan and confirm on this phone, then swap phones and repeat. Scanning alone does not grant access.")
-        Button(onClick = { scanner.launch(PairingScannerActivity.options()) }, modifier = Modifier.fillMaxWidth()) {
-            Text("Scan other phone's QR")
-        }
-        OutlinedButton(onClick = { showingCode = true }, modifier = Modifier.fillMaxWidth()) {
-            Text("Show my QR code")
-        }
-        if (cameraDenied) {
-            Text("Camera access was denied. You can still paste a code below. To scan, allow Camera in Android app settings, then return and tap Scan again.")
-            TextButton(onClick = {
-                context.startActivity(Intent(AndroidSettings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}")))
-            }) { Text("Open camera permission settings") }
-        }
-        Text("After scanning, name the phone and confirm below. You can also paste a code shared through a trusted conversation.")
-        OutlinedTextField(name, { name = it.take(40) }, label = { Text("Phone name") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-        OutlinedTextField(code, { code = it.take(200); confirmed = false },
-            label = { Text("Other phone's pairing code") }, modifier = Modifier.fillMaxWidth())
-        Toggle(
-            if (state.settings.role == Role.SHARER) "I approve this phone to read enabled information, including retained history"
-            else "I verified this is the sharing phone's code",
-            confirmed, { confirmed = it },
-        )
-        Button(onClick = { model.addPeer(code, name); confirmed = false }, enabled = confirmed && code.isNotBlank() && name.isNotBlank()) {
-            Text(if (state.settings.role == Role.SHARER) "Approve phone" else "Add phone")
-        }
+    Panel(if (state.settings.role == Role.SHARER) "Connect a caregiver" else "Connect to your family") {
+        ConnectionSetup(state, model)
     }
     Panel("Paired phones") {
         if (state.peers.isEmpty()) Text("No paired phones")
         state.peers.forEach { peer ->
             Text(peer.name, fontWeight = FontWeight.Bold)
-            SelectionContainer { Text(peer.id, style = MaterialTheme.typography.bodySmall) }
             Text("Last receipt: ${formatTime(peer.lastContact)}")
             TextButton(onClick = { removing = peer }) { Text("Remove ${peer.name}") }
         }
         Text("Removing a caregiver stops future access. It cannot erase information already received on that phone.")
     }
-    if (showingCode) PublicCodeDialog(state.publicId) { showingCode = false }
     removing?.let { peer ->
         AlertDialog(onDismissRequest = { removing = null }, title = { Text("Remove ${peer.name}?") },
             text = { Text("You will need to approve this phone again to resume sharing. In caregiver mode, its cached history is also deleted here.") },
             confirmButton = { TextButton(onClick = { model.removePeer(peer.id); removing = null }) { Text("Remove") } },
             dismissButton = { TextButton(onClick = { removing = null }) { Text("Cancel") } })
     }
-}
-
-@Composable
-private fun PublicCodeDialog(publicId: String, dismiss: () -> Unit) {
-    val context = LocalContext.current
-    val ownCode = Pairing.code(publicId)
-    val bitmap = remember(ownCode) {
-        val matrix = MultiFormatWriter().encode(ownCode, BarcodeFormat.QR_CODE, 480, 480)
-        Bitmap.createBitmap(480, 480, Bitmap.Config.ARGB_8888).apply {
-            setPixels(IntArray(480 * 480) { i -> if (matrix[i % 480, i / 480]) android.graphics.Color.BLACK else android.graphics.Color.WHITE }, 0, 480, 0, 0, 480, 480)
-        }
-    }
-    AlertDialog(
-        onDismissRequest = dismiss,
-        title = { Text("This phone's QR code") },
-        text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("On the other phone, open SeniorLink → Phones → Scan other phone's QR.")
-                Image(bitmap.asImageBitmap(), contentDescription = "Public pairing code QR",
-                    modifier = Modifier.fillMaxWidth().aspectRatio(1f))
-                Text("This code is public. Private keys never leave the phone. Both phones must confirm before updates can arrive.")
-                SelectionContainer { Text(ownCode, style = MaterialTheme.typography.bodySmall) }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = {
-                        context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("SeniorLink public code", ownCode))
-                    }) { Text("Copy code") }
-                    TextButton(onClick = {
-                        context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"; putExtra(Intent.EXTRA_TEXT, ownCode)
-                        }, "Share public pairing code"))
-                    }) { Text("Share code") }
-                }
-            }
-        },
-        confirmButton = { TextButton(onClick = dismiss) { Text("Done") } },
-    )
 }
 
 @Composable

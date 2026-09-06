@@ -7,7 +7,8 @@ import com.google.zxing.MultiFormatWriter
 import com.google.zxing.PlanarYUVLuminanceSource
 import com.google.zxing.client.android.Intents
 import com.journeyapps.barcodescanner.DefaultDecoderFactory
-import family.seniorlink.core.Pairing
+import family.seniorlink.core.ConnectionPairing
+import family.seniorlink.core.ConnectionInvite
 import family.seniorlink.pairing.PairingScannerActivity
 import org.junit.Assert.*
 import org.junit.Test
@@ -29,10 +30,12 @@ class PairingScannerTest {
         assertFalse(intent.getBooleanExtra(Intents.Scan.SHOW_MISSING_CAMERA_PERMISSION_DIALOG, true))
     }
 
-    @Test fun `bundled camera decoder reads the existing public QR format offline`() {
+    @Test fun `bundled camera decoder reads the temporary connection invitation offline`() {
         val own = "a".repeat(64)
         val other = "b".repeat(64)
-        val text = Pairing.code(other)
+        val invite = ConnectionInvite(publicId = other, name = "Grandad", ticket = "endpoint" + "a".repeat(240),
+            endpointId = "c".repeat(64), token = "d".repeat(32), commitment = "e".repeat(64))
+        val text = ConnectionPairing.code(invite)
         val size = 480
         val matrix = MultiFormatWriter().encode(text, BarcodeFormat.QR_CODE, size, size)
         val luminance = ByteArray(size * size) { index ->
@@ -44,7 +47,7 @@ class PairingScannerTest {
         val decoded = decoder.decode(frame)
         assertNotNull(decoded)
         assertEquals(text, decoded.text)
-        assertEquals(other, Pairing.parsePeer(decoded.text, own))
+        assertEquals(invite, ConnectionPairing.parse(decoded.text, own))
         assertNull(decoder.decode(PlanarYUVLuminanceSource(
             ByteArray(size * size) { 0xff.toByte() }, size, size, 0, 0, size, size, false,
         )))

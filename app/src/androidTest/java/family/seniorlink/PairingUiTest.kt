@@ -23,7 +23,7 @@ import org.junit.runner.RunWith
 class PairingUiTest {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
 
-    @Test fun scanReviewCancelValidationAndApproval() {
+    @Test fun simpleRoleSpecificSetupAndCameraFallback() {
         val app = compose.activity.application as SeniorApp
         compose.waitUntil(15_000) {
             compose.onAllNodesWithText("Share my information").fetchSemanticsNodes().isNotEmpty() ||
@@ -34,61 +34,37 @@ class PairingUiTest {
             compose.onNodeWithText(if (caregiver) "I'm a caregiver" else "Share my information").performClick()
         }
         compose.onNodeWithText("Phones").performClick()
-        val addLabel = if (app.store.settings.role == Role.SHARER) "Approve phone" else "Add phone"
-        val approval = if (app.store.settings.role == Role.SHARER)
-            "I approve this phone to read enabled information, including retained history"
-        else "I verified this is the sharing phone's code"
-        val other = "b".repeat(64)
-        val replacement = "c".repeat(64)
         val before = app.store.peers()
-        try {
-            compose.onNodeWithText("Show my QR code").performClick()
-            compose.onNodeWithContentDescription("Public pairing code QR").assertExists()
-            compose.onNodeWithText(Pairing.code(app.publicId)).assertExists()
-            compose.onNodeWithText("Done").performClick()
-            compose.onNodeWithText("Phone name").performTextInput("Test caregiver")
-            scan(Activity.RESULT_OK, Pairing.code(other))
-            compose.onNodeWithText("Other phone's pairing code").assertTextContains(Pairing.code(other))
-            compose.onNodeWithText(addLabel).performScrollTo().assertIsNotEnabled()
-            assertEquals(before, app.store.peers())
-
-            compose.onNodeWithText(approval).performScrollTo().performClick()
-            compose.onNodeWithText(addLabel).assertIsEnabled()
-            // Cancel, unrelated QR, and self-scan neither replace the draft nor write peers.
+        compose.onNodeWithText("Your name (optional)").performTextInput("Anna")
+        if (app.store.settings.role == Role.SHARER) {
+            compose.onAllNodesWithText("Connect a caregiver").filter(hasClickAction()).onFirst().performScrollTo().performClick()
+            compose.waitUntil(40_000) {
+                compose.onAllNodesWithContentDescription("Connection QR code").fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithText("Show this QR to the caregiver").assertExists()
+            compose.activityRule.scenario.recreate()
+            compose.onNodeWithContentDescription("Connection QR code").assertExists()
+            compose.onNodeWithText("Cancel").performClick()
+            compose.onNodeWithText("Your name (optional)").assertTextContains("Anna")
+            compose.onNodeWithText("Scan QR").assertDoesNotExist()
+        } else {
             scan(Activity.RESULT_CANCELED)
-            compose.onNodeWithText("Other phone's pairing code").assertTextContains(Pairing.code(other))
-            scan(Activity.RESULT_OK, "https://example.com/not-a-pairing-code")
-            compose.onNodeWithText("Scan or paste the full SeniorLink public pairing code.").assertExists()
+            compose.onNodeWithText("Your name (optional)").assertTextContains("Anna")
+            scan(Activity.RESULT_OK, "https://example.com/unrelated")
+            compose.onNodeWithText("Scan the QR shown under Connect a caregiver on the sharing phone.").assertExists()
             compose.onNodeWithText("OK").performClick()
-            scan(Activity.RESULT_OK, Pairing.code(app.publicId))
-            compose.onNodeWithText("This is your own code. Scan or paste the other phone's code.").assertExists()
+            scan(Activity.RESULT_OK, Pairing.code("b".repeat(64)))
+            compose.onNodeWithText("That is an older QR code. Update SeniorLink on both phones, then tap Connect a caregiver for a new one.").assertExists()
             compose.onNodeWithText("OK").performClick()
-            assertEquals(before, app.store.peers())
-
             scan(Activity.RESULT_CANCELED, missingPermission = true)
             compose.onNodeWithText("Open camera permission settings").assertExists()
-            compose.onNodeWithText("Other phone's pairing code").assertTextContains(Pairing.code(other))
-            scan(Activity.RESULT_CANCELED)
-            compose.onNodeWithText("Open camera permission settings").assertDoesNotExist()
-            // A new scan clears previous approval, even after returning from another Activity.
-            scan(Activity.RESULT_OK, Pairing.code(replacement))
-            compose.onNodeWithText(addLabel).performScrollTo().assertIsNotEnabled()
-            compose.onNodeWithText(approval).performScrollTo().performClick()
-            compose.onNodeWithText("Other phone's pairing code").performTextReplacement(Pairing.code(other))
-            compose.onNodeWithText(addLabel).assertIsNotEnabled()
-            compose.onNodeWithText(approval).performScrollTo().performClick()
-
-            // Android may recreate the form while the camera is open.
+            compose.onNodeWithText("Use a shared invitation instead").performScrollTo().performClick()
+            compose.onNodeWithText("Connection invitation").performTextInput("draft")
             compose.activityRule.scenario.recreate()
-            compose.onNodeWithText("Phone name").assertTextContains("Test caregiver")
-            compose.onNodeWithText("Other phone's pairing code").assertTextContains(Pairing.code(other))
-            compose.onNodeWithText(addLabel).performScrollTo().assertIsEnabled().performClick()
-            compose.waitUntil(10_000) { app.store.approved(other) }
-            compose.onNodeWithText("OK").performClick()
-            assertEquals("Test caregiver", app.store.peers().single { it.id == other }.name)
-        } finally {
-            if (before.none { it.id == other }) app.store.removePeer(other)
+            compose.onNodeWithText("Connection invitation").assertTextContains("draft")
+            compose.onNodeWithText("Your name (optional)").assertTextContains("Anna")
         }
+        assertEquals(before, app.store.peers())
     }
 
     private fun scan(resultCode: Int, text: String? = null, missingPermission: Boolean = false) {
@@ -100,7 +76,7 @@ class PairingUiTest {
             }
             val target = hasComponent(PairingScannerActivity::class.java.name)
             Intents.intending(target).respondWith(ActivityResult(resultCode, result))
-            compose.onNodeWithText("Scan other phone's QR").performScrollTo().performClick()
+            compose.onNodeWithText("Scan QR").performScrollTo().performClick()
             compose.waitForIdle()
             Intents.intended(target)
         } finally {

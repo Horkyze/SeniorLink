@@ -1,5 +1,43 @@
 # Verification
 
+## Single-scan pairing — 0.1.2
+
+- Core: 23 passing tests, including 16 connection tests with real Ed25519 signatures.
+  Coverage includes matching codes, QR nonce commitments, signature/identity/request
+  tampering, request pinning, host and caregiver rejection, late cancellation, expiry,
+  lost replies, failed persistence, and revocation during a retry.
+- Android unit tests: 9 passing tests, including offline decoding of the larger,
+  temporary invitation QR, scanner configuration and the existing SQLite coverage.
+- Android 15 / API 35 ARM64 emulator: the full 10-test suite passes. The native
+  pairing test keeps synchronization on separate permanent endpoints, refuses access
+  before approval, recovers after lost pairing responses, and receives a check-in
+  after a single invitation. Existing sync, camera and monitoring tests also pass.
+- The full UI connection test uses the production controllers on both sides and
+  real iroh networking. It rejects one request, creates a fresh invitation, compares
+  both displayed codes, rotates the sharing activity, then confirms and verifies
+  both databases have the connection.
+- A separate fresh caregiver-mode run passes scanner cancellation, invalid/legacy
+  QR handling, camera denial, manual fallback and form recreation.
+- Four pairing UI tests also pass with Android's system font scale set to 2.0,
+  including the complete connection flow. Screenshots were inspected: the code
+  stays on one line and the confirmation/rejection buttons remain separate.
+  Captures use synthetic data and temporarily permit screenshots only in test code.
+- Lint has zero errors (17 existing dependency/style/resource warnings). APK build,
+  native ABI/16 KB alignment checks and APK signature verification pass.
+- Native libraries were reused unchanged from the checksum-verified, checked-in
+  0.1.1 pilot APK. The iroh dependency and native transport versions were not changed.
+- Installed the published 0.1.1 APK, created a synthetic check-in and peer, then
+  installed 0.1.2 in place. Settings, encrypted identity, paired phone and history
+  survived; the updated app added another check-in using the same permanent identity.
+- Reconstructed the 0.1.2 APK from its five archive parts in an isolated directory;
+  its bytes and SHA-256 match the tested, originally signed APK.
+
+The release APK uses the original pilot signing key. Its certificate matches the
+published 0.1.0 and 0.1.1 APKs, allowing in-place installation without clearing data.
+Signing material remains local and is not included in the repository or release.
+Physical phone-to-phone optical scans, manufacturer-specific behavior and network
+transitions still require the real-phone acceptance checklist.
+
 ## QR pairing update — 0.1.1
 
 - Core: 7 passing tests, including shared scanned/pasted-code validation and rejection
