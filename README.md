@@ -6,17 +6,13 @@ explicitly approves every caregiver; caregivers catch up when they open the app.
 
 ## Get the APK without building
 
-Download **[SeniorLink-0.1.0-debug.apk](https://github.com/Horkyze/SeniorLink/releases/download/v0.1.0/SeniorLink-0.1.0-debug.apk)**
-from the **[v0.1.0 prerelease](https://github.com/Horkyze/SeniorLink/releases/tag/v0.1.0)**.
-The release also includes `SHA256SUMS` for verifying the download. Install the same
-APK on the sharing phone and each caregiver's phone.
-
-This is a **debug-signed family pilot**, not a production or emergency-response app.
-See the installation steps and reliability limitations below.
+Download **[SeniorLink-0.1.1-debug.apk](https://github.com/Horkyze/SeniorLink/releases/download/v0.1.1/SeniorLink-0.1.1-debug.apk)**
+from the **[v0.1.1 prerelease](https://github.com/Horkyze/SeniorLink/releases/tag/v0.1.1)**.
+The release includes the in-app QR scanner and `SHA256SUMS` for verifying the download.
 
 For a synced checkout, the same APK is also carried as small archive parts because
 the full APK exceeds the thread's binary-file sync limit. Restore and checksum-verify
-it to `dist/SeniorLink-0.1.0-debug.apk` with:
+it to `dist/SeniorLink-0.1.1-debug.apk` with:
 
 ```sh
 python3 scripts/unpack-pilot.py
@@ -25,12 +21,19 @@ python3 scripts/unpack-pilot.py
 This needs only Python 3, not Java, Rust or Android Studio. Copy the resulting APK
 to the phones. The archive parts themselves are not installable Android packages.
 
+This is a **debug-signed family pilot**, not a production or emergency-response app.
+Install the same APK on the sharing phone and each caregiver's phone. The published
+0.1.1 APK uses the same signing certificate as the published 0.1.0 APK, so it can
+update that installation without uninstalling or clearing pairing/history.
+
 ## Features
 
 - **Two roles:** sharing phone and caregiver. Caregiver mode never monitors its own
   SMS, location or unlock activity.
 - **iroh peer connections:** persistent public-key identities, reciprocal manual
   pairing, QR/public-code sharing, encrypted delivery, and an approved-peer list.
+- **In-app QR scanner:** bundled offline decoding, no external camera app or Google
+  Play Services needed. A scan fills the pairing form; approval is still explicit.
 - **Independent catch-up:** each caregiver has its own durable synchronization
   cursor. One offline caregiver does not block another.
 - **Phone unlock activity:** best-effort observation of Android's unlock broadcast.
@@ -54,12 +57,14 @@ Requires Android 8.0 (API 26) or later on ARM64, ARMv7 or x86-64.
    Android may ask you to allow installation from the app opening the APK.
 2. On your grandfather's phone choose **Share my information**. On the other
    phones choose **I'm a caregiver**.
-3. Open **Phones** on each phone. Use **Copy code** or **Share code** to exchange
-   the full `seniorlink:…` public codes through a trusted conversation. The QR
-   can also be scanned with another camera/scanner and its text pasted into the app.
-4. On each caregiver phone, add your grandfather's code and a phone name.
-   On his phone, add each caregiver's code and explicitly approve access.
-   Approval includes retained history for currently enabled features.
+3. Open **Phones → Show my QR code** on your grandfather's phone. On a caregiver's
+   phone, tap **Phones → Scan other phone's QR**, allow Camera, and point at that
+   code. The code fills in automatically. Enter a phone name, verify the code, and
+   tap **Add phone**.
+4. Swap directions: show the caregiver's QR and scan it on your grandfather's phone.
+   Enter a name, explicitly approve access, and tap **Approve phone**. Repeat both
+   directions for the second caregiver. Approval includes retained history for
+   currently enabled features. Scanning alone never grants access.
 5. On his phone, use **Settings** to choose the features, then **Save settings**.
    For SMS, enter full sender numbers (including country code) or exact sender
    names, one per line. No wildcard matching.
@@ -68,6 +73,12 @@ Requires Android 8.0 (API 26) or later on ARM64, ARMv7 or x86-64.
 7. Tap **I'm okay — check in**. Open the caregiver app to receive it. Missed
    retained events arrive automatically; current updates are polled every 15 seconds
    while the caregiver app is visible.
+
+Camera is requested only when you tap Scan, not when sharing starts. **Cancel scan**
+or Android Back returns without changing the form. The camera closes when you leave
+the scanner; no frames are saved or uploaded. If Camera is denied or unavailable,
+use **Show my QR code → Copy code / Share code** and paste into the other phone's
+pairing-code field instead. Changing the code clears any previous approval.
 
 To stop collecting and sharing, use **Pause sharing** in the app or notification.
 Pause before editing feature settings. Removing a paired phone stops future access;
@@ -185,6 +196,10 @@ Do not mix unrelated Kotlin and native FFI versions.
   workflow, including continued sharing while the sharing screen is backgrounded.
 - `PublicDiscoveryTest` dials using only a public key and requires Internet plus
   the public iroh discovery/relay infrastructure.
+- Pairing tests cover offline QR decoding, scan/cancel/permission-denied results,
+  invalid and self-codes, manual fallback, approval reset, form recreation, and camera
+  shutdown on background/cancel. Scan results in UI tests are synthetic; camera
+  lifecycle is tested separately on the emulator.
 
 Tests use synthetic events. Do not enter real Telegram credentials into tests.
 The completed checks are recorded in [`docs/verification.md`](docs/verification.md).

@@ -1,3 +1,6 @@
 <resources>
     <string name="app_name">SeniorLink</string>
+    <string name="scan_pairing_title">Scan the other phone</string>
+    <string name="scan_pairing_instructions">On the other phone, open SeniorLink → Phones → Show my QR code. Center that QR code in the frame. Nothing is approved until you confirm.</string>
+    <string name="cancel_scan">Cancel scan</string>
 </resources>

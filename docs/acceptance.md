@@ -17,6 +17,24 @@ The emulator tests do not establish manufacturer-specific battery behavior.
 - Remove one caregiver during a connection; subsequent access must stop. Copies
   already delivered to that phone cannot be recalled.
 
+## In-app QR pairing
+
+- On each phone, open **Phones → Show my QR code** and scan it from the other
+  phone using **Scan other phone's QR**. Confirm both directions, for each caregiver.
+- Scan in portrait and landscape, under normal and dim lighting, and with larger
+  Android font/display settings. Check that the QR, camera frame, and Cancel remain usable.
+- Verify that scanning fills the code but does not add a peer until the name,
+  confirmation and Add/Approve action are completed.
+- Change a scanned/pasted code after confirming; approval must reset.
+- Cancel/back, scan an unrelated QR, and scan the phone's own code. The existing
+  pairing form and paired-phone list must remain intact.
+- Deny Camera, then deny permanently. Manual copy/share/paste must still work.
+  Allow Camera in settings and retry. No camera permission is needed to show a QR.
+- Background/lock the scanner, rotate, and return. The camera must not keep running
+  in the background, and the name/code draft must survive activity recreation.
+- Install 0.1.1 over the published 0.1.0 APK without uninstalling. Verify the role,
+  public identity, approved phones and retained history remain unchanged.
+
 ## Three-phone catch-up
 
 - Keep caregiver B closed. Generate several manual check-ins and unlocks while A

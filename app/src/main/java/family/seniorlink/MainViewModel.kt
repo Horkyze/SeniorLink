@@ -116,7 +116,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun addPeer(code: String, name: String) = action {
         app.store.addPeer(Pairing.parse(code), name.trim(), app.publicId)
-        message("Phone paired locally. Complete approval on the other phone too.")
+        message("Saved on this phone. On the other phone, open Phones → Scan other phone's QR and scan this phone's code, then confirm there too. Once both are saved, tap Start sharing on the sharing phone.")
     }
 
     fun removePeer(id: String) = action { app.store.removePeer(id) }

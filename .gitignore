@@ -5,7 +5,7 @@
 local.properties
 app/src/main/jniLibs/
 dist/*
-!dist/SeniorLink-0.1.0.zip.part*
+!dist/SeniorLink-*.zip.part*
 !dist/SHA256SUMS
 *.jks
 *.keystore

@@ -67,7 +67,7 @@ class Store(context: Context, name: String = "seniorlink") : SQLiteOpenHelper(co
     @Synchronized fun approved(id: String): Boolean = peers().any { it.id == id }
 
     @Synchronized fun addPeer(id: String, name: String, ownId: String) {
-        require(Pairing.parse(id) == id && id != ownId)
+        require(Pairing.parsePeer(id, ownId) == id)
         require(name.isNotBlank() && name.length <= 40)
         require(approved(id) || peers().size < 8) { "At most eight paired phones." }
         if (approved(id)) {

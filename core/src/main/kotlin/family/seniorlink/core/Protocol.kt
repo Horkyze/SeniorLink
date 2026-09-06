@@ -127,9 +127,14 @@ object Pairing {
     private val keyPattern = Regex("[0-9a-f]{64}")
     fun parse(text: String): String {
         val key = text.trim().removePrefix("seniorlink:").lowercase()
-        require(keyPattern.matches(key)) { "Paste the full SeniorLink public pairing code." }
+        require(keyPattern.matches(key)) { "Scan or paste the full SeniorLink public pairing code." }
         return key
     }
+
+    fun parsePeer(text: String, ownId: String): String = parse(text).also {
+        require(it != ownId) { "This is your own code. Scan or paste the other phone's code." }
+    }
+
     fun code(key: String) = "seniorlink:${parse(key)}"
 }
 

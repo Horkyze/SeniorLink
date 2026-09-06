@@ -21,6 +21,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -31,9 +32,12 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.MultiFormatWriter
+import com.google.zxing.client.android.Intents
+import com.journeyapps.barcodescanner.ScanContract
 import family.seniorlink.core.*
 import family.seniorlink.data.StoredEvent
 import family.seniorlink.monitor.MonitorService
+import family.seniorlink.pairing.PairingScannerActivity
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -65,7 +69,7 @@ private fun SeniorScreen(model: MainViewModel) {
     val monitorStatus by model.app.monitorStatus.collectAsStateWithLifecycle()
     val telegramStatus by model.app.telegramStatus.collectAsStateWithLifecycle()
     val peerStatus by model.app.peerStatus.collectAsStateWithLifecycle()
-    var tab by remember { mutableIntStateOf(0) }
+    var tab by rememberSaveable { mutableIntStateOf(0) }
     val context = LocalContext.current
     val permissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         model.message("Permissions updated. Tap Start sharing when ready.")
@@ -85,9 +89,8 @@ private fun SeniorScreen(model: MainViewModel) {
             Spacer(Modifier.height(16.dp))
             if (!state.ready) {
                 Text(state.fatalError ?: "Opening secure local storage…")
-                return@Column
             }
-            if (state.settings.role == Role.UNSET) {
+            if (state.ready && state.settings.role == Role.UNSET) {
                 Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Panel("Welcome") {
                         Text("Install this same app on each phone. Choose this phone's role; no monitoring starts automatically.")
@@ -104,66 +107,67 @@ private fun SeniorScreen(model: MainViewModel) {
                         Text("Use Android app settings → Storage → Clear data to reset the role and identity. Resetting requires pairing again.")
                     }
                 }
-                return@Column
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("Updates", "Phones", "Settings").forEachIndexed { index, title ->
-                    FilterChip(selected = tab == index, onClick = { tab = index }, label = { Text(title) })
-                }
-            }
-            Column(
-                Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                when (tab) {
-                    0 -> {
-                        if (state.settings.role == Role.SHARER) {
-                            Panel(if (running) "Sharing is active" else "Sharing is paused") {
-                                Text(monitorStatus)
-                                Text("Approved caregivers: ${state.peers.size}")
-                                if (running) {
-                                    Button(onClick = model::checkIn, modifier = Modifier.fillMaxWidth()) { Text("I'm okay — check in") }
-                                    OutlinedButton(onClick = model::pause, modifier = Modifier.fillMaxWidth()) { Text("Pause sharing") }
-                                } else {
-                                    Button(onClick = {
-                                        val missing = MonitorService.missingPermissions(context, state.settings)
-                                        if (missing.isEmpty()) model.start() else permissions.launch(missing.toTypedArray())
-                                    }, modifier = Modifier.fillMaxWidth()) { Text("Start sharing") }
-                                    Text("Starting makes retained information available to approved phones. A visible notification stays on while sharing.")
-                                }
-                            }
-                        } else {
-                            Panel("Catch-up on open") {
-                                Text("Cached information appears immediately. Updates arrive only while this app is open and the sharing phone is reachable.")
-                                if (state.peers.isEmpty()) Text("Go to Phones to pair with your grandfather.")
-                                state.peers.forEach { peer ->
-                                    Text(peer.name, fontWeight = FontWeight.Bold)
-                                    Text(peerStatus[peer.id] ?: "Waiting to connect")
-                                    Text("Last contact: ${formatTime(peer.lastContact)}")
-                                    if (peer.historyGap) Text("Some older history expired or was withdrawn before this phone received it.")
-                                }
-                                Text("Always check timestamps. Missing contact alone is not an emergency signal.")
-                            }
-                        }
-                        Text("Recent updates", style = MaterialTheme.typography.titleLarge)
-                        if (state.events.isEmpty()) Text("No updates yet. On the sharing phone, tap Start sharing and then I'm okay.")
-                        state.events.forEach { EventCard(it, state.peers) }
+            if (state.ready && state.settings.role != Role.UNSET) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("Updates", "Phones", "Settings").forEachIndexed { index, title ->
+                        FilterChip(selected = tab == index, onClick = { tab = index }, label = { Text(title) })
                     }
-                    1 -> Phones(state, model)
-                    2 -> {
-                        if (state.settings.role == Role.SHARER) {
-                            SharingSettings(state, running, telegramStatus, model)
-                        } else Panel("Caregiver mode") {
-                            Text("This phone does not collect its own location, unlock activity or SMS.")
-                            Text("No background service or push notifications. Networking stops when you leave the app.")
+                }
+                Column(
+                    Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    when (tab) {
+                        0 -> {
+                            if (state.settings.role == Role.SHARER) {
+                                Panel(if (running) "Sharing is active" else "Sharing is paused") {
+                                    Text(monitorStatus)
+                                    Text("Approved caregivers: ${state.peers.size}")
+                                    if (running) {
+                                        Button(onClick = model::checkIn, modifier = Modifier.fillMaxWidth()) { Text("I'm okay — check in") }
+                                        OutlinedButton(onClick = model::pause, modifier = Modifier.fillMaxWidth()) { Text("Pause sharing") }
+                                    } else {
+                                        Button(onClick = {
+                                            val missing = MonitorService.missingPermissions(context, state.settings)
+                                            if (missing.isEmpty()) model.start() else permissions.launch(missing.toTypedArray())
+                                        }, modifier = Modifier.fillMaxWidth()) { Text("Start sharing") }
+                                        Text("Starting makes retained information available to approved phones. A visible notification stays on while sharing.")
+                                    }
+                                }
+                            } else {
+                                Panel("Catch-up on open") {
+                                    Text("Cached information appears immediately. Updates arrive only while this app is open and the sharing phone is reachable.")
+                                    if (state.peers.isEmpty()) Text("Go to Phones to pair with your grandfather.")
+                                    state.peers.forEach { peer ->
+                                        Text(peer.name, fontWeight = FontWeight.Bold)
+                                        Text(peerStatus[peer.id] ?: "Waiting to connect")
+                                        Text("Last contact: ${formatTime(peer.lastContact)}")
+                                        if (peer.historyGap) Text("Some older history expired or was withdrawn before this phone received it.")
+                                    }
+                                    Text("Always check timestamps. Missing contact alone is not an emergency signal.")
+                                }
+                            }
+                            Text("Recent updates", style = MaterialTheme.typography.titleLarge)
+                            if (state.events.isEmpty()) Text("No updates yet. On the sharing phone, tap Start sharing and then I'm okay.")
+                            state.events.forEach { EventCard(it, state.peers) }
                         }
-                        Panel("Privacy and reliability") {
-                            Text("History stays on these phones for up to 7 days, capped at 10,000 events per source. The latest 100 are shown here.")
-                            Text("iroh encrypts connections end to end. Public discovery and relays may see connection metadata, not message contents.")
-                            Text("Android can stop the sharing service. After reboot or force-stop, open SeniorLink on the sharing phone and tap Start.")
-                            OutlinedButton(onClick = {
-                                context.startActivity(Intent(AndroidSettings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}")))
-                            }) { Text("Android app settings") }
+                        1 -> Phones(state, model)
+                        2 -> {
+                            if (state.settings.role == Role.SHARER) {
+                                SharingSettings(state, running, telegramStatus, model)
+                            } else Panel("Caregiver mode") {
+                                Text("This phone does not collect its own location, unlock activity or SMS.")
+                                Text("No background service or push notifications. Networking stops when you leave the app.")
+                            }
+                            Panel("Privacy and reliability") {
+                                Text("History stays on these phones for up to 7 days, capped at 10,000 events per source. The latest 100 are shown here.")
+                                Text("iroh encrypts connections end to end. Public discovery and relays may see connection metadata, not message contents.")
+                                Text("Android can stop the sharing service. After reboot or force-stop, open SeniorLink on the sharing phone and tap Start.")
+                                OutlinedButton(onClick = {
+                                    context.startActivity(Intent(AndroidSettings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}")))
+                                }) { Text("Android app settings") }
+                            }
                         }
                     }
                 }
@@ -179,36 +183,44 @@ private fun SeniorScreen(model: MainViewModel) {
 @Composable
 private fun Phones(state: ScreenState, model: MainViewModel) {
     val context = LocalContext.current
-    var code by remember { mutableStateOf("") }
-    var name by remember { mutableStateOf("") }
-    var confirmed by remember { mutableStateOf(false) }
+    var code by rememberSaveable { mutableStateOf("") }
+    var name by rememberSaveable { mutableStateOf("") }
+    var confirmed by rememberSaveable { mutableStateOf(false) }
+    var showingCode by rememberSaveable { mutableStateOf(false) }
+    var cameraDenied by rememberSaveable { mutableStateOf(false) }
     var removing by remember { mutableStateOf<Peer?>(null) }
-    val ownCode = Pairing.code(state.publicId)
-    Panel("This phone's public pairing code") {
-        Text("Exchange codes in person or through a trusted conversation. This code is public; private keys never leave the phone.")
-        val bitmap = remember(ownCode) {
-            val matrix = MultiFormatWriter().encode(ownCode, BarcodeFormat.QR_CODE, 480, 480)
-            Bitmap.createBitmap(480, 480, Bitmap.Config.ARGB_8888).apply {
-                setPixels(IntArray(480 * 480) { i -> if (matrix[i % 480, i / 480]) android.graphics.Color.BLACK else android.graphics.Color.WHITE }, 0, 480, 0, 0, 480, 480)
+    val scanner = rememberLauncherForActivityResult(ScanContract()) { result ->
+        val scanned = result.contents
+        cameraDenied = result.originalIntent?.getBooleanExtra(Intents.Scan.MISSING_CAMERA_PERMISSION, false) == true
+        if (scanned != null) {
+            try {
+                // A scan only fills the draft. It must never approve a phone.
+                code = Pairing.code(Pairing.parsePeer(scanned, state.publicId))
+                confirmed = false
+            } catch (error: IllegalArgumentException) {
+                model.message(error.message)
             }
         }
-        Image(bitmap.asImageBitmap(), contentDescription = "Public pairing code QR", modifier = Modifier.size(220.dp))
-        SelectionContainer { Text(ownCode, style = MaterialTheme.typography.bodySmall) }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = {
-                context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("SeniorLink public code", ownCode))
-            }) { Text("Copy code") }
-            OutlinedButton(onClick = {
-                context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
-                    type = "text/plain"; putExtra(Intent.EXTRA_TEXT, ownCode)
-                }, "Share public pairing code"))
-            }) { Text("Share code") }
-        }
+        // Back/cancel or a camera error leaves the existing draft untouched.
     }
     Panel(if (state.settings.role == Role.SHARER) "Approve a caregiver" else "Add the sharing phone") {
-        Text("Paste the other phone's full code. Complete this on both phones. A QR can be read with another camera/scanner and its text pasted here.")
+        Text("Link in both directions: scan and confirm on this phone, then swap phones and repeat. Scanning alone does not grant access.")
+        Button(onClick = { scanner.launch(PairingScannerActivity.options()) }, modifier = Modifier.fillMaxWidth()) {
+            Text("Scan other phone's QR")
+        }
+        OutlinedButton(onClick = { showingCode = true }, modifier = Modifier.fillMaxWidth()) {
+            Text("Show my QR code")
+        }
+        if (cameraDenied) {
+            Text("Camera access was denied. You can still paste a code below. To scan, allow Camera in Android app settings, then return and tap Scan again.")
+            TextButton(onClick = {
+                context.startActivity(Intent(AndroidSettings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}")))
+            }) { Text("Open camera permission settings") }
+        }
+        Text("After scanning, name the phone and confirm below. You can also paste a code shared through a trusted conversation.")
         OutlinedTextField(name, { name = it.take(40) }, label = { Text("Phone name") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-        OutlinedTextField(code, { code = it.take(200) }, label = { Text("Other phone's pairing code") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(code, { code = it.take(200); confirmed = false },
+            label = { Text("Other phone's pairing code") }, modifier = Modifier.fillMaxWidth())
         Toggle(
             if (state.settings.role == Role.SHARER) "I approve this phone to read enabled information, including retained history"
             else "I verified this is the sharing phone's code",
@@ -228,12 +240,49 @@ private fun Phones(state: ScreenState, model: MainViewModel) {
         }
         Text("Removing a caregiver stops future access. It cannot erase information already received on that phone.")
     }
+    if (showingCode) PublicCodeDialog(state.publicId) { showingCode = false }
     removing?.let { peer ->
         AlertDialog(onDismissRequest = { removing = null }, title = { Text("Remove ${peer.name}?") },
             text = { Text("You will need to approve this phone again to resume sharing. In caregiver mode, its cached history is also deleted here.") },
             confirmButton = { TextButton(onClick = { model.removePeer(peer.id); removing = null }) { Text("Remove") } },
             dismissButton = { TextButton(onClick = { removing = null }) { Text("Cancel") } })
     }
+}
+
+@Composable
+private fun PublicCodeDialog(publicId: String, dismiss: () -> Unit) {
+    val context = LocalContext.current
+    val ownCode = Pairing.code(publicId)
+    val bitmap = remember(ownCode) {
+        val matrix = MultiFormatWriter().encode(ownCode, BarcodeFormat.QR_CODE, 480, 480)
+        Bitmap.createBitmap(480, 480, Bitmap.Config.ARGB_8888).apply {
+            setPixels(IntArray(480 * 480) { i -> if (matrix[i % 480, i / 480]) android.graphics.Color.BLACK else android.graphics.Color.WHITE }, 0, 480, 0, 0, 480, 480)
+        }
+    }
+    AlertDialog(
+        onDismissRequest = dismiss,
+        title = { Text("This phone's QR code") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("On the other phone, open SeniorLink → Phones → Scan other phone's QR.")
+                Image(bitmap.asImageBitmap(), contentDescription = "Public pairing code QR",
+                    modifier = Modifier.fillMaxWidth().aspectRatio(1f))
+                Text("This code is public. Private keys never leave the phone. Both phones must confirm before updates can arrive.")
+                SelectionContainer { Text(ownCode, style = MaterialTheme.typography.bodySmall) }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = {
+                        context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("SeniorLink public code", ownCode))
+                    }) { Text("Copy code") }
+                    TextButton(onClick = {
+                        context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"; putExtra(Intent.EXTRA_TEXT, ownCode)
+                        }, "Share public pairing code"))
+                    }) { Text("Share code") }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = dismiss) { Text("Done") } },
+    )
 }
 
 @Composable

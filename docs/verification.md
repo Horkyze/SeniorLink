@@ -1,6 +1,39 @@
-# Verification of the initial pilot
+# Verification
 
-## Build and automated checks
+## QR pairing update — 0.1.1
+
+- Core: 7 passing tests, including shared scanned/pasted-code validation and rejection
+  of self, unrelated and malformed codes.
+- Android unit tests: 9 passing tests, including the bundled QR decoder reading
+  the existing pairing-code format from a synthetic camera-luminance frame, and
+  scanner options restricting decoding to QR without saving images.
+- Android 15 / API 35 ARM64 emulator: all 6 instrumented tests pass. New tests
+  cover scan result delivery, explicit approval, manual code edits resetting
+  approval, cancellation, invalid/self QR, permission-denied recovery, draft
+  restoration after recreation, and real camera preview shutdown on background/cancel.
+- The pairing UI test also passes in a separate fresh caregiver-mode run:
+  `:app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=family.seniorlink.PairingUiTest -Pandroid.testInstrumentationRunnerArguments.pairingRole=CAREGIVER`.
+- The caregiver cold-start run exposed a Compose slot-table failure. Loading,
+  role setup and main content now use explicit branches instead of early returns
+  from an inline composable; both role workflows pass after that change.
+- Manually exercised the actual Android Camera prompt: deny returns to the form
+  with settings/manual fallback; retry and allow opens the embedded scanner.
+- Verified APK ABI/alignment packaging and signature. The signing certificate is
+  identical to the published 0.1.0 APK.
+- Installed 0.1.0 on the emulator, chose a role, seeded a synthetic peer/check-in,
+  then installed 0.1.1 in place. Settings, encrypted identity, public pairing code,
+  peer and history survived without uninstalling.
+- Reconstructed the 0.1.1 APK from its synced parts in a separate directory and
+  verified its checksum. Invalid manifests, a missing part and checksum mismatch
+  are rejected.
+
+UI tests inject synthetic scan results; the decoder and actual camera lifecycle
+are tested separately. Optical phone-to-phone QR capture, camera behavior on
+physical family phones, low-light performance, and landscape/large-font usability
+remain on the real-phone acceptance checklist. The APK and checksum are available
+in the [v0.1.1 prerelease](https://github.com/Horkyze/SeniorLink/releases/tag/v0.1.1).
+
+## Initial 0.1.0 pilot — build and automated checks
 
 Environment: Apple Silicon macOS, JDK 21, Android SDK 35, Rust 1.94.0 and NDK
 28.2.13676358. Native libraries built for ARM64, ARMv7 and x86-64.

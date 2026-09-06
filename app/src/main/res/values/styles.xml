@@ -5,4 +5,10 @@
         <item name="android:colorAccent">#14665B</item>
         <item name="android:windowActionModeOverlay">true</item>
     </style>
+    <style name="ScannerTheme" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:colorAccent">#A5D6C9</item>
+        <item name="android:windowBackground">#000000</item>
+    </style>
 </resources>

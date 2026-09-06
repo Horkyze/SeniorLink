@@ -19,6 +19,19 @@ class ProtocolTest {
         assertFailsWith<IllegalArgumentException> { Pairing.parse("a".repeat(63)) }
     }
 
+    @Test fun `scanned and pasted codes use the same validation and cannot pair with self`() {
+        val other = "b".repeat(64)
+        assertEquals(other, Pairing.parsePeer(Pairing.code(other), source))
+        assertEquals(other, Pairing.parsePeer("  ${other.uppercase()}  ", source))
+        assertEquals("seniorlink:$other", Pairing.code(Pairing.parsePeer(other, source)))
+        listOf(
+            "", "https://example.com", "seniorlink:wrong", "seniorlink:${"g".repeat(64)}",
+            "seniorlink:$other?extra=1", "seniorlink:$source", source.uppercase(),
+        ).forEach { invalid ->
+            assertFailsWith<IllegalArgumentException>(invalid) { Pairing.parsePeer(invalid, source) }
+        }
+    }
+
     @Test fun `reject forged source invalid order and malformed data`() {
         assertFailsWith<IllegalArgumentException> { batch.validate("b".repeat(64), 0) }
         assertFailsWith<IllegalArgumentException> { batch.copy(events = listOf(event, event)).validate(source, 0) }
