@@ -1,5 +1,28 @@
 # Verification
 
+## Version and manual update checks in Settings — 0.1.5
+
+- Core: 23 passing tests. Android unit tests: 28 passing tests. Update checks
+  distinguish newer releases, successful checks without an update, and network,
+  HTTP or invalid-response failures. Tests cover retrying, checking again after
+  Later, duplicate taps during startup/manual checks, retained state and cancellation.
+- Android 17 / API 37.1 ARM64 emulator: six Settings and update-dialog tests pass
+  at normal and 2× font scale. The actual Settings screen shows version 0.1.5 and
+  the check button in both roles. Tests verify checking/disabled state, failure
+  feedback, retry, the existing download prompt, explicit approval and browser
+  fallback. Result scenarios use synthetic responses and intercepted download
+  intents; no future APK is downloaded or installed by tests.
+- Settings captures at normal and large font sizes were visually inspected.
+  Screenshots use synthetic visible state and leave stored settings/history intact;
+  production screenshot protection remains enabled.
+- Debug and instrumentation APK builds and lint pass. The version 0.1.5 APK
+  (version code 6) matches the published 0.1.4 signing certificate. Native ABI,
+  16 KB ELF/ZIP alignment and checksum-verified reconstruction from six archive
+  parts pass. The update is installed on the Android 17 emulator.
+
+No new collection permissions or storage migration are required. Physical-phone
+verification remains outstanding.
+
 ## Location map — 0.1.4
 
 - Core: 23 passing tests. Android unit tests: 23 passing tests. New SQLite

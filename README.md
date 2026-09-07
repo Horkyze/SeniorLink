@@ -6,15 +6,15 @@ explicitly approves every caregiver; caregivers catch up when they open the app.
 
 ## Get the APK without building
 
-Download **[SeniorLink-0.1.4-debug.apk](https://github.com/Horkyze/SeniorLink/releases/download/v0.1.4/SeniorLink-0.1.4-debug.apk)**
-from the **[v0.1.4 prerelease](https://github.com/Horkyze/SeniorLink/releases/tag/v0.1.4)**.
-The release adds an interactive map for the latest known location and previous
-fixes, with timestamps, accuracy and separate history for each sharing phone.
+Download **[SeniorLink-0.1.5-debug.apk](https://github.com/Horkyze/SeniorLink/releases/download/v0.1.5/SeniorLink-0.1.5-debug.apk)**
+from the **[v0.1.5 prerelease](https://github.com/Horkyze/SeniorLink/releases/tag/v0.1.5)**.
+Settings now shows the installed version and a **Check for updates** button for
+both roles, with clear results and a retry after a failed check.
 The release assets include `SHA256SUMS` for verifying the download.
 
 For a synced checkout, the same APK is also carried as small archive parts because
 the full APK exceeds the thread's binary-file sync limit. Restore and checksum-verify
-it to `dist/SeniorLink-0.1.4-debug.apk` with:
+it to `dist/SeniorLink-0.1.5-debug.apk` with:
 
 ```sh
 python3 scripts/unpack-pilot.py
@@ -25,10 +25,10 @@ to the phones. The archive parts themselves are not installable Android packages
 
 This is a **debug-signed family pilot**, not a production or emergency-response app.
 Install the same APK on the sharing phone and each caregiver's phone. The published
-0.1.4 APK uses the same signing certificate as the published 0.1.0–0.1.3 APKs,
+0.1.5 APK uses the same signing certificate as the published 0.1.0–0.1.4 APKs,
 so it can update those installations without uninstalling or clearing pairing/history.
-Version 0.1.3 checks for this update when you open the app. For versions 0.1.0–0.1.2,
-install 0.1.4 manually using the link above to enable prompts for future updates.
+Versions 0.1.3–0.1.4 check for this update when you open the app. For versions
+0.1.0–0.1.2, install 0.1.5 manually using the link above to enable update checks.
 
 ## Features
 
@@ -61,6 +61,12 @@ install 0.1.4 manually using the link above to enable prompts for future updates
   update** or **Later**. The download opens in your browser; install the APK to update.
   Offline or failed checks are silent. Dismissing lasts until the next app launch;
   rotating the phone or returning from another app does not repeat the check.
+- **Manual update check:** open **Settings → App updates** to see the current
+  version and tap **Check for updates**. The button is disabled while checking.
+  A successful check reports that you're up to date or offers the newer APK;
+  a failed check reports the problem and allows a retry. You can check again after
+  choosing Later without restarting the app. This is available in both roles,
+  including while sharing is active.
 
 This is an initial family pilot, not an emergency-response or medical device.
 

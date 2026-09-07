@@ -35,6 +35,7 @@ import family.seniorlink.pairing.PairingStep
 import family.seniorlink.monitor.MonitorService
 import family.seniorlink.updates.UpdateDialog
 import family.seniorlink.updates.UpdateViewModel
+import family.seniorlink.updates.UpdateSettings
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -62,9 +63,11 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 @OptIn(ExperimentalLayoutApi::class)
-private fun SeniorScreen(model: MainViewModel, updates: UpdateViewModel) {
+internal fun SeniorScreen(model: MainViewModel, updates: UpdateViewModel) {
     val state by model.screen.collectAsStateWithLifecycle()
     val availableUpdate by updates.availableUpdate.collectAsStateWithLifecycle()
+    val checkingUpdate by updates.checking.collectAsStateWithLifecycle()
+    val updateResult by updates.manualResult.collectAsStateWithLifecycle()
     val pairingState by model.pairing.state.collectAsStateWithLifecycle()
     val running by MonitorService.running.collectAsStateWithLifecycle()
     val monitorStatus by model.app.monitorStatus.collectAsStateWithLifecycle()
@@ -173,6 +176,7 @@ private fun SeniorScreen(model: MainViewModel, updates: UpdateViewModel) {
                             onSelectLocation = { scope.launch { scroll.animateScrollTo(0) } })
                         2 -> Phones(state, model)
                         3 -> {
+                            UpdateSettings(checkingUpdate, updateResult, updates::checkForUpdates)
                             if (state.settings.role == Role.SHARER) {
                                 SharingSettings(state, running, telegramStatus, model)
                             } else Panel("Caregiver mode") {

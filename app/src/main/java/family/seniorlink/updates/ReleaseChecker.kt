@@ -16,14 +16,21 @@ import java.net.URL
 
 data class AppUpdate(val version: String, val downloadUrl: String)
 
+sealed interface UpdateCheckResult {
+    data class Available(val update: AppUpdate) : UpdateCheckResult
+    data object UpToDate : UpdateCheckResult
+    data object Failed : UpdateCheckResult
+}
+
 class ReleaseChecker(
     private val openConnection: () -> HttpURLConnection = {
         URL(RELEASES_URL).openConnection() as HttpURLConnection
     },
 ) {
-    suspend fun latest(installedVersion: String): AppUpdate? = withContext(Dispatchers.IO) {
+    suspend fun check(installedVersion: String): UpdateCheckResult = withContext(Dispatchers.IO) {
         var connection: HttpURLConnection? = null
         try {
+            require(ReleaseVersion.parse(installedVersion) != null)
             connection = openConnection().apply {
                 connectTimeout = 5_000
                 readTimeout = 5_000
@@ -32,7 +39,7 @@ class ReleaseChecker(
                 setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
                 setRequestProperty("User-Agent", "SeniorLink/$installedVersion")
             }
-            if (connection.responseCode != HttpURLConnection.HTTP_OK) return@withContext null
+            if (connection.responseCode != HttpURLConnection.HTTP_OK) return@withContext UpdateCheckResult.Failed
             val body = connection.inputStream.use { stream ->
                 val output = ByteArrayOutputStream()
                 val buffer = ByteArray(8192)
@@ -45,12 +52,12 @@ class ReleaseChecker(
                 }
                 output.toString(Charsets.UTF_8.name())
             }
-            selectUpdate(body, installedVersion)
+            selectUpdate(body, installedVersion)?.let { UpdateCheckResult.Available(it) } ?: UpdateCheckResult.UpToDate
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) {
-            // Offline, rate-limited or malformed responses must not interrupt startup.
-            null
+            // Keep failure distinct from a successful check with no newer release.
+            UpdateCheckResult.Failed
         } finally {
             connection?.disconnect()
         }
@@ -64,9 +71,12 @@ class ReleaseChecker(
 
         internal fun selectUpdate(body: String, installedVersion: String): AppUpdate? {
             val installed = ReleaseVersion.parse(installedVersion) ?: return null
-            return json.parseToJsonElement(body).jsonArray.mapNotNull { element ->
-                val release = runCatching { json.decodeFromJsonElement<Release>(element) }.getOrNull()
-                    ?: return@mapNotNull null
+            val entries = json.parseToJsonElement(body).jsonArray
+            val releases = entries.mapNotNull { element ->
+                runCatching { json.decodeFromJsonElement<Release>(element) }.getOrNull()
+            }
+            require(entries.isEmpty() || releases.isNotEmpty()) { "Invalid release response" }
+            return releases.mapNotNull { release ->
                 if (release.draft) return@mapNotNull null
                 val version = ReleaseVersion.parse(release.tag_name) ?: return@mapNotNull null
                 if (version <= installed) return@mapNotNull null

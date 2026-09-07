@@ -74,7 +74,7 @@ class ReleaseCheckerTest {
             assertNotEquals(caller, Thread.currentThread())
             connection
         }
-        assertEquals(AppUpdate("0.1.10", download), checker.latest("0.1.2"))
+        assertEquals(UpdateCheckResult.Available(AppUpdate("0.1.10", download)), checker.check("0.1.2"))
         assertTrue(connection.disconnected)
         assertEquals(5_000, connection.connectTimeout)
         assertEquals(5_000, connection.readTimeout)
@@ -82,28 +82,36 @@ class ReleaseCheckerTest {
         assertEquals("application/vnd.github+json", connection.getRequestProperty("Accept"))
     }
 
-    @Test fun `HTTP failures and malformed or oversized responses are silent`() = runBlocking {
+    @Test fun `HTTP failures and malformed or oversized responses return failure`() = runBlocking {
         for (code in listOf(301, 403, 404, 429, 500)) {
             val connection = FakeConnection(code = code)
-            assertNull(ReleaseChecker { connection }.latest("0.1.2"))
+            assertEquals(UpdateCheckResult.Failed, ReleaseChecker { connection }.check("0.1.2"))
             assertTrue(connection.disconnected)
             assertFalse(connection.inputOpened)
         }
-        for (body in listOf("not JSON", "{}", " ".repeat(ReleaseChecker.MAX_RESPONSE_BYTES + 1))) {
+        for (body in listOf("not JSON", "{}", "[{}]", "[null]", " ".repeat(ReleaseChecker.MAX_RESPONSE_BYTES + 1))) {
             val connection = FakeConnection(body = body)
-            assertNull(ReleaseChecker { connection }.latest("0.1.2"))
+            assertEquals(UpdateCheckResult.Failed, ReleaseChecker { connection }.check("0.1.2"))
             assertTrue(connection.disconnected)
         }
-        assertNull(ReleaseChecker { throw IOException("offline") }.latest("0.1.2"))
+        assertEquals(UpdateCheckResult.Failed, ReleaseChecker { throw IOException("offline") }.check("0.1.2"))
         val timeout = FakeConnection(failure = java.net.SocketTimeoutException())
-        assertNull(ReleaseChecker { timeout }.latest("0.1.2"))
+        assertEquals(UpdateCheckResult.Failed, ReleaseChecker { timeout }.check("0.1.2"))
         assertTrue(timeout.disconnected)
+    }
+
+    @Test fun `successful check without a newer APK is distinct from failure`() = runBlocking {
+        for (body in listOf("[]", "[${release("v0.1.2")}]")) {
+            val connection = FakeConnection(body = body)
+            assertEquals(UpdateCheckResult.UpToDate, ReleaseChecker { connection }.check("0.1.2"))
+            assertTrue(connection.disconnected)
+        }
     }
 
     @Test fun `cancellation propagates and closes the connection`() = runBlocking {
         val connection = FakeConnection(failure = CancellationException("closed"))
         try {
-            ReleaseChecker { connection }.latest("0.1.2")
+            ReleaseChecker { connection }.check("0.1.2")
             fail("Cancellation must not be swallowed")
         } catch (_: CancellationException) {
             assertTrue(connection.disconnected)
