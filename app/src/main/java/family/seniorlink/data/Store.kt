@@ -13,7 +13,7 @@ data class StoredEvent(val source: String, val event: Event)
 data class TelegramJob(val source: String, val event: Event, val attempts: Int)
 
 /** One transaction boundary owns event insertion, deduplication and cursor advancement. */
-class Store(context: Context, name: String = "seniorlink") : SQLiteOpenHelper(context, "$name.db", null, 1), Inbox {
+class Store(context: Context, name: String = "seniorlink") : SQLiteOpenHelper(context, "$name.db", null, 2), Inbox {
     private val prefs = context.getSharedPreferences("$name-settings", Context.MODE_PRIVATE)
     private val revision = MutableStateFlow(0L)
     val changes = revision.asStateFlow()
@@ -28,13 +28,28 @@ class Store(context: Context, name: String = "seniorlink") : SQLiteOpenHelper(co
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("CREATE TABLE peers(id TEXT PRIMARY KEY, name TEXT NOT NULL, cursor INTEGER NOT NULL DEFAULT 0, contact INTEGER NOT NULL DEFAULT 0, gap INTEGER NOT NULL DEFAULT 0)")
         db.execSQL("CREATE TABLE counters(source TEXT PRIMARY KEY, sequence INTEGER NOT NULL)")
-        db.execSQL("CREATE TABLE events(source TEXT NOT NULL, sequence INTEGER NOT NULL, storedAt INTEGER NOT NULL, json TEXT NOT NULL, PRIMARY KEY(source, sequence))")
+        db.execSQL("CREATE TABLE events(source TEXT NOT NULL, sequence INTEGER NOT NULL, storedAt INTEGER NOT NULL, json TEXT NOT NULL, kind TEXT NOT NULL, occurredAt INTEGER NOT NULL, PRIMARY KEY(source, sequence))")
+        createLocationIndex(db)
         db.execSQL("CREATE TABLE telegram(source TEXT NOT NULL, sequence INTEGER NOT NULL, retryAt INTEGER NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(source, sequence), FOREIGN KEY(source, sequence) REFERENCES events(source, sequence) ON DELETE CASCADE)")
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        error("A migration is required; never silently discard safety history.")
+        check(oldVersion == 1 && newVersion == 2) { "A migration is required; never silently discard safety history." }
+        db.execSQL("ALTER TABLE events ADD COLUMN kind TEXT NOT NULL DEFAULT ''")
+        db.execSQL("ALTER TABLE events ADD COLUMN occurredAt INTEGER NOT NULL DEFAULT 0")
+        db.rawQuery("SELECT source,sequence,json FROM events", null).use { cursor ->
+            while (cursor.moveToNext()) {
+                val event = Wire.json.decodeFromString<Event>(cursor.getString(2))
+                db.execSQL("UPDATE events SET kind=?,occurredAt=? WHERE source=? AND sequence=?",
+                    arrayOf(event.kind.name, event.occurredAt, cursor.getString(0), cursor.getLong(1)))
+            }
+        }
+        createLocationIndex(db)
     }
+
+    private fun createLocationIndex(db: SQLiteDatabase) = db.execSQL(
+        "CREATE INDEX events_location ON events(source,kind,occurredAt DESC,sequence DESC)",
+    )
 
     private fun changed() { revision.value += 1 }
 
@@ -177,6 +192,17 @@ class Store(context: Context, name: String = "seniorlink") : SQLiteOpenHelper(co
         else null
     }
 
+    /** Independent of the mixed feed: SMS/unlocks must never crowd locations out. */
+    @Synchronized fun locations(source: String, now: Long = System.currentTimeMillis()): List<StoredEvent> {
+        writableDatabase.delete("events", "storedAt<?", arrayOf((now - RETENTION_MS).toString()))
+        return readableDatabase.rawQuery(
+            "SELECT json FROM events WHERE source=? AND kind=? ORDER BY occurredAt DESC,sequence DESC LIMIT 1000",
+            arrayOf(source, Kind.LOCATION.name),
+        ).use { c -> buildList {
+            while (c.moveToNext()) add(StoredEvent(source, Wire.json.decodeFromString<Event>(c.getString(0))))
+        } }
+    }
+
     @Synchronized fun finishTelegram(job: TelegramJob, retryAt: Long?) {
         if (retryAt == null) writableDatabase.delete(
             "telegram", "source=? AND sequence=?", arrayOf(job.source, job.event.sequence.toString()),
@@ -198,6 +224,7 @@ class Store(context: Context, name: String = "seniorlink") : SQLiteOpenHelper(co
         val values = ContentValues().apply {
             put("source", source); put("sequence", event.sequence); put("storedAt", now)
             put("json", Wire.json.encodeToString(event))
+            put("kind", event.kind.name); put("occurredAt", event.occurredAt)
         }
         db.insertWithOnConflict("events", null, values, SQLiteDatabase.CONFLICT_IGNORE)
     }

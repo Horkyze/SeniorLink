@@ -6,14 +6,15 @@ explicitly approves every caregiver; caregivers catch up when they open the app.
 
 ## Get the APK without building
 
-Download **[SeniorLink-0.1.3-debug.apk](https://github.com/Horkyze/SeniorLink/releases/download/v0.1.3/SeniorLink-0.1.3-debug.apk)**
-from the **[v0.1.3 prerelease](https://github.com/Horkyze/SeniorLink/releases/tag/v0.1.3)**.
-The release adds a background update check and download prompt at startup, plus
-`SHA256SUMS` for verifying the download.
+Download **[SeniorLink-0.1.4-debug.apk](https://github.com/Horkyze/SeniorLink/releases/download/v0.1.4/SeniorLink-0.1.4-debug.apk)**
+from the **[v0.1.4 prerelease](https://github.com/Horkyze/SeniorLink/releases/tag/v0.1.4)**.
+The release adds an interactive map for the latest known location and previous
+fixes, with timestamps, accuracy and separate history for each sharing phone.
+The release assets include `SHA256SUMS` for verifying the download.
 
 For a synced checkout, the same APK is also carried as small archive parts because
 the full APK exceeds the thread's binary-file sync limit. Restore and checksum-verify
-it to `dist/SeniorLink-0.1.3-debug.apk` with:
+it to `dist/SeniorLink-0.1.4-debug.apk` with:
 
 ```sh
 python3 scripts/unpack-pilot.py
@@ -24,10 +25,10 @@ to the phones. The archive parts themselves are not installable Android packages
 
 This is a **debug-signed family pilot**, not a production or emergency-response app.
 Install the same APK on the sharing phone and each caregiver's phone. The published
-0.1.3 APK uses the same signing certificate as the published 0.1.0–0.1.2 APKs,
+0.1.4 APK uses the same signing certificate as the published 0.1.0–0.1.3 APKs,
 so it can update those installations without uninstalling or clearing pairing/history.
-Install 0.1.3 manually using the link above to enable prompts for future updates;
-earlier versions do not include the startup update check.
+Version 0.1.3 checks for this update when you open the app. For versions 0.1.0–0.1.2,
+install 0.1.4 manually using the link above to enable prompts for future updates.
 
 ## Features
 
@@ -43,6 +44,11 @@ earlier versions do not include the startup update check.
 - **Phone unlock activity:** best-effort observation of Android's unlock broadcast.
 - **Location:** opt-in, approximately 15-minute updates when a provider supplies a
   fix, with accuracy and timestamps. Network location is preferred; GPS is a fallback.
+- **Location map:** open **Location** or **Updates → View location map** for an
+  interactive map of the latest known position and previous fixes. Choose a phone,
+  tap a map marker or history entry, and use **Latest location** or **Show history**
+  to frame the map. Teal marks the latest fix; amber marks previous fixes. Each
+  selection shows its recorded time and accuracy. This is saved history, not live tracking.
 - **SMS:** separately enabled, exact sender allowlist required, multipart messages
   assembled. Bodies are off by default; likely verification codes are withheld.
 - **Manual “I'm okay” check-in.**
@@ -132,8 +138,18 @@ after an ambiguous network failure can occasionally duplicate a Telegram post.
   the `location` type when location is enabled, not a perpetual `dataSync` service.
 - Unlock observation is not a complete audit log. Permission denial is respected.
 - Retention is seven days, capped at 10,000 events per source; pruning occurs
-  during use/synchronization. The UI shows the latest 100 events. Caregivers are
+  during use/synchronization. Updates shows the latest 100 events; Location
+  independently shows up to 1,000 retained fixes per phone, ordered by the time
+  Android recorded them. Busy SMS/unlock activity cannot crowd locations out of
+  the map. Caregivers are
   told when history expired or was withdrawn before receipt.
+- Map tiles require internet for uncached areas. Coordinates and history remain
+  readable without tiles. OpenStreetMap receives the viewer's IP address and
+  requested map areas; names, event timestamps and the location history itself
+  are rendered on-device. The map needs no API key, Google Play Services or
+  location permission on a caregiver phone. Tiles use normal HTTP caching, an
+  app-specific User-Agent, visible attribution and no area prefetch/downloads,
+  following the [OpenStreetMap tile policy](https://operations.osmfoundation.org/policies/tiles/).
 - The sharing phone sends each caregiver's batch independently. Events and cursors
   are committed atomically before acknowledgment; retries do not create duplicate
   caregiver events.

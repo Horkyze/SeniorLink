@@ -12,6 +12,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -26,6 +27,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import family.seniorlink.core.*
 import family.seniorlink.data.StoredEvent
+import family.seniorlink.location.LocationContent
+import kotlinx.coroutines.launch
 import family.seniorlink.pairing.ConnectionSetup
 import family.seniorlink.pairing.ConnectionDialog
 import family.seniorlink.pairing.PairingStep
@@ -58,6 +61,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 private fun SeniorScreen(model: MainViewModel, updates: UpdateViewModel) {
     val state by model.screen.collectAsStateWithLifecycle()
     val availableUpdate by updates.availableUpdate.collectAsStateWithLifecycle()
@@ -67,6 +71,10 @@ private fun SeniorScreen(model: MainViewModel, updates: UpdateViewModel) {
     val telegramStatus by model.app.telegramStatus.collectAsStateWithLifecycle()
     val peerStatus by model.app.peerStatus.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableIntStateOf(0) }
+    var locationSource by rememberSaveable { mutableStateOf<String?>(null) }
+    var locationSequence by rememberSaveable { mutableStateOf<Long?>(null) }
+    val scroll = remember(tab) { ScrollState(0) }
+    val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val permissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         model.message("Permissions updated. Tap Start sharing when ready.")
@@ -106,17 +114,26 @@ private fun SeniorScreen(model: MainViewModel, updates: UpdateViewModel) {
                 }
             }
             if (state.ready && state.settings.role != Role.UNSET) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("Updates", "Phones", "Settings").forEachIndexed { index, title ->
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("Updates", "Location", "Phones", "Settings").forEachIndexed { index, title ->
                         FilterChip(selected = tab == index, onClick = { tab = index }, label = { Text(title) })
                     }
                 }
                 Column(
-                    Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(vertical = 12.dp),
+                    Modifier.weight(1f).verticalScroll(scroll).padding(vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     when (tab) {
                         0 -> {
+                            Panel("Location") {
+                                val latest = state.locations.maxByOrNull { it.event.occurredAt }
+                                Text(if (latest == null) "No location received yet" else
+                                    "Latest known location • ${formatTime(latest.event.occurredAt)}")
+                                if (latest != null) Text(state.peers.firstOrNull { it.id == latest.source }?.name ?: "This phone")
+                                Button(onClick = {
+                                    locationSource = latest?.source; locationSequence = null; tab = 1
+                                }, modifier = Modifier.fillMaxWidth()) { Text("View location map") }
+                            }
                             if (state.settings.role == Role.SHARER) {
                                 Panel(if (running) "Sharing is active" else "Sharing is paused") {
                                     Text(monitorStatus)
@@ -147,10 +164,15 @@ private fun SeniorScreen(model: MainViewModel, updates: UpdateViewModel) {
                             }
                             Text("Recent updates", style = MaterialTheme.typography.titleLarge)
                             if (state.events.isEmpty()) Text("No updates yet. On the sharing phone, tap Start sharing and then I'm okay.")
-                            state.events.forEach { EventCard(it, state.peers) }
+                            state.events.forEach { stored -> EventCard(stored, state.peers) {
+                                locationSource = stored.source; locationSequence = stored.event.sequence; tab = 1
+                            } }
                         }
-                        1 -> Phones(state, model)
-                        2 -> {
+                        1 -> LocationContent(state, running, locationSource, locationSequence,
+                            onSettings = { tab = 3 },
+                            onSelectLocation = { scope.launch { scroll.animateScrollTo(0) } })
+                        2 -> Phones(state, model)
+                        3 -> {
                             if (state.settings.role == Role.SHARER) {
                                 SharingSettings(state, running, telegramStatus, model)
                             } else Panel("Caregiver mode") {
@@ -158,7 +180,8 @@ private fun SeniorScreen(model: MainViewModel, updates: UpdateViewModel) {
                                 Text("Updates sync while this app is open. A connection invitation can stay active for up to 5 minutes.")
                             }
                             Panel("Privacy and reliability") {
-                                Text("History stays on these phones for up to 7 days, capped at 10,000 events per source. The latest 100 are shown here.")
+                                Text("History stays on these phones for up to 7 days, capped at 10,000 events per source. Updates shows the latest 100 events.")
+                                Text("The Location map shows up to 1,000 retained fixes per phone. Map tiles come from OpenStreetMap; the tile service sees your IP address and the map areas you view.")
                                 Text("iroh encrypts connections end to end. Public discovery and relays may see connection metadata, not message contents.")
                                 Text("Android can stop the sharing service. After reboot or force-stop, open SeniorLink on the sharing phone and tap Start.")
                                 OutlinedButton(onClick = {
@@ -245,9 +268,8 @@ private fun SharingSettings(state: ScreenState, running: Boolean, telegramStatus
 }
 
 @Composable
-private fun EventCard(stored: StoredEvent, peers: List<Peer>) {
+private fun EventCard(stored: StoredEvent, peers: List<Peer>, onLocation: () -> Unit) {
     val event = stored.event
-    val context = LocalContext.current
     Panel(when (event.kind) {
         Kind.UNLOCK -> "Phone unlocked"
         Kind.LOCATION -> "Location update"
@@ -258,10 +280,7 @@ private fun EventCard(stored: StoredEvent, peers: List<Peer>) {
         when (event.kind) {
             Kind.LOCATION -> {
                 Text("${event.latitude}, ${event.longitude} • accuracy ±${event.accuracy?.toInt()} m")
-                TextButton(onClick = {
-                    val uri = Uri.parse("geo:${event.latitude},${event.longitude}?q=${event.latitude},${event.longitude}")
-                    runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, uri)) }
-                }) { Text("Open in maps") }
+                TextButton(onClick = onLocation) { Text("Show on location map") }
             }
             Kind.SMS -> {
                 Text("From ${event.sender}")

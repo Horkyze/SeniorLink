@@ -1,5 +1,36 @@
 # Verification
 
+## Location map — 0.1.4
+
+- Core: 23 passing tests. Android unit tests: 23 passing tests. New SQLite
+  checks verify that location history survives a busy mixed feed, uses fix time
+  rather than receipt order, stays separate per source, expires and is removed
+  with consent/peer withdrawal. A version-1 database migrates in place while
+  preserving events, paired phones, cursors, Telegram jobs and sequence counters.
+- Android 17 / API 37.1 ARM64 emulator with 16 KB pages: five location UI tests
+  cover the embedded map, history selection, switching phones, an older-update
+  link with matching sequence numbers on different phones, missing data, peer
+  removal, background/resume and offline selection. Wi-Fi/mobile data settings
+  are restored after the offline test. The selection workflow also passes at
+  font scale 2.0; map controls wrap for large text.
+- Visually inspected real raster tiles and the latest/previous selection markers
+  using synthetic locations in Bratislava, plus the offline message and large
+  text layout. Production screenshot protection remains enabled.
+- Debug and instrumentation APKs build successfully. Lint has zero errors;
+  APK signature and native ABI/16 KB ELF and ZIP alignment checks pass, including
+  the new MapLibre native library on all three supported ABIs.
+- Updated the AndroidX UI test dependencies to stable Espresso 3.7.0 and matching
+  runner/rules to fix the old runner's removed InputManager reflection on Android 17.
+  No collection permissions were added; caregiver maps use only received fixes.
+- The 0.1.4 APK (version code 5) has the same signing certificate as the published
+  0.1.3 APK. The unchanged iroh binaries match that release on all three ABIs.
+  Reconstructed the APK from its six archive parts in an isolated directory and
+  verified that its bytes and SHA-256 match the tested APK.
+
+This build is installed on the Android 17 test emulator. Map tiles require internet
+for uncached areas; saved coordinates and history remain available offline.
+Physical-phone verification remains outstanding.
+
 ## Startup update check — 0.1.3
 
 - Core: 23 passing tests. Android unit tests: 20 passing tests, including 11 new

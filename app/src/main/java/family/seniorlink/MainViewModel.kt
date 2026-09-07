@@ -21,6 +21,7 @@ data class ScreenState(
     val settings: Settings = Settings(),
     val peers: List<Peer> = emptyList(),
     val events: List<StoredEvent> = emptyList(),
+    val locations: List<StoredEvent> = emptyList(),
     val pendingTelegram: Long = 0,
     val tokenSaved: Boolean = false,
     val fatalError: String? = null,
@@ -57,9 +58,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private suspend fun refresh() {
         val current = withContext(Dispatchers.IO) {
+            val peers = app.store.peers()
+            val sources = if (app.store.settings.role == Role.SHARER) listOf(app.publicId) else peers.map { it.id }
             ScreenState(
                 ready = true, publicId = app.publicId, settings = app.store.settings,
-                peers = app.store.peers(), events = app.store.recent(),
+                peers = peers, events = app.store.recent(),
+                locations = sources.flatMap { app.store.locations(it) },
                 pendingTelegram = app.store.pendingTelegram(),
                 tokenSaved = app.secrets.read("telegram")?.isNotEmpty() == true,
             )

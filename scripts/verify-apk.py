@@ -12,7 +12,7 @@ def verify(path: Path) -> None:
     with zipfile.ZipFile(path) as apk, path.open("rb") as raw:
         names = set(apk.namelist())
         for abi, (elf_class, machine) in abis.items():
-            for library in ("libiroh_ffi.so", "libjnidispatch.so"):
+            for library in ("libiroh_ffi.so", "libjnidispatch.so", "libmaplibre.so"):
                 name = f"lib/{abi}/{library}"
                 assert name in names, f"Missing {name}"
                 info = apk.getinfo(name)
