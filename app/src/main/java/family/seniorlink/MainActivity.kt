@@ -28,13 +28,17 @@ import family.seniorlink.core.*
 import family.seniorlink.data.StoredEvent
 import family.seniorlink.pairing.ConnectionSetup
 import family.seniorlink.pairing.ConnectionDialog
+import family.seniorlink.pairing.PairingStep
 import family.seniorlink.monitor.MonitorService
+import family.seniorlink.updates.UpdateDialog
+import family.seniorlink.updates.UpdateViewModel
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 class MainActivity : ComponentActivity() {
     private val model by viewModels<MainViewModel>()
+    private val updates by viewModels<UpdateViewModel>()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -46,7 +50,7 @@ class MainActivity : ComponentActivity() {
                 secondary = Color(0xFF426653),
                 background = Color(0xFFF7F9F6),
                 surface = Color(0xFFF7F9F6),
-            )) { SeniorScreen(model) }
+            )) { SeniorScreen(model, updates) }
         }
     }
     override fun onStart() { super.onStart(); model.foreground(true) }
@@ -54,8 +58,10 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun SeniorScreen(model: MainViewModel) {
+private fun SeniorScreen(model: MainViewModel, updates: UpdateViewModel) {
     val state by model.screen.collectAsStateWithLifecycle()
+    val availableUpdate by updates.availableUpdate.collectAsStateWithLifecycle()
+    val pairingState by model.pairing.state.collectAsStateWithLifecycle()
     val running by MonitorService.running.collectAsStateWithLifecycle()
     val monitorStatus by model.app.monitorStatus.collectAsStateWithLifecycle()
     val telegramStatus by model.app.telegramStatus.collectAsStateWithLifecycle()
@@ -166,6 +172,9 @@ private fun SeniorScreen(model: MainViewModel) {
         }
     }
     ConnectionDialog(model)
+    if (state.ready && state.message == null && pairingState.step == PairingStep.IDLE) {
+        availableUpdate?.let { UpdateDialog(it, updates::dismiss) }
+    }
     state.message?.let { text ->
         AlertDialog(onDismissRequest = { model.message(null) }, title = { Text("SeniorLink") },
             text = { Text(text) }, confirmButton = { TextButton(onClick = { model.message(null) }) { Text("OK") } })

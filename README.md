@@ -6,14 +6,14 @@ explicitly approves every caregiver; caregivers catch up when they open the app.
 
 ## Get the APK without building
 
-Download **[SeniorLink-0.1.2-debug.apk](https://github.com/Horkyze/SeniorLink/releases/download/v0.1.2/SeniorLink-0.1.2-debug.apk)**
-from the **[v0.1.2 prerelease](https://github.com/Horkyze/SeniorLink/releases/tag/v0.1.2)**.
-The release includes single-scan pairing with a matching verification code and
+Download **[SeniorLink-0.1.3-debug.apk](https://github.com/Horkyze/SeniorLink/releases/download/v0.1.3/SeniorLink-0.1.3-debug.apk)**
+from the **[v0.1.3 prerelease](https://github.com/Horkyze/SeniorLink/releases/tag/v0.1.3)**.
+The release adds a background update check and download prompt at startup, plus
 `SHA256SUMS` for verifying the download.
 
 For a synced checkout, the same APK is also carried as small archive parts because
 the full APK exceeds the thread's binary-file sync limit. Restore and checksum-verify
-it to `dist/SeniorLink-0.1.2-debug.apk` with:
+it to `dist/SeniorLink-0.1.3-debug.apk` with:
 
 ```sh
 python3 scripts/unpack-pilot.py
@@ -24,8 +24,10 @@ to the phones. The archive parts themselves are not installable Android packages
 
 This is a **debug-signed family pilot**, not a production or emergency-response app.
 Install the same APK on the sharing phone and each caregiver's phone. The published
-0.1.2 APK uses the same signing certificate as the published 0.1.0 and 0.1.1 APKs,
+0.1.3 APK uses the same signing certificate as the published 0.1.0–0.1.2 APKs,
 so it can update those installations without uninstalling or clearing pairing/history.
+Install 0.1.3 manually using the link above to enable prompts for future updates;
+earlier versions do not include the startup update check.
 
 ## Features
 
@@ -48,6 +50,11 @@ so it can update those installations without uninstalling or clearing pairing/hi
   persistent retry queue, rate-limit handling. Only the sharing phone posts.
 - **Visible monitoring:** foreground notification with a Pause action. No hidden
   collection, remote activation, boot receiver or automatic restart after force-stop.
+- **Update prompt on startup:** checks the public GitHub releases in the background,
+  including family pilot prereleases. A newer version with an APK offers **Download
+  update** or **Later**. The download opens in your browser; install the APK to update.
+  Offline or failed checks are silent. Dismissing lasts until the next app launch;
+  rotating the phone or returning from another app does not repeat the check.
 
 This is an initial family pilot, not an emergency-response or medical device.
 

@@ -1,5 +1,29 @@
 # Verification
 
+## Startup update check — 0.1.3
+
+- Core: 23 passing tests. Android unit tests: 20 passing tests, including 11 new
+  checks for semantic version ordering, published pilot prereleases, APK selection,
+  trusted download URLs, HTTP/offline/timeout failures, bounded responses,
+  cancellation, asynchronous startup and dismissal across activity recreation.
+- Android 15 / API 35 ARM64 emulator: all four selected tests pass (three update
+  prompt tests and the existing Start/check-in/Pause workflow). The update tests
+  verify that only accepting opens the exact APK URL, Later dismisses, and a missing
+  browser leaves a copyable download link. All three update tests also pass with
+  Android's system font scale set to 2.0. Normal and large-font captures were
+  inspected; the text fits and both actions remain accessible.
+- Debug APK and instrumentation APK build successfully. Lint has zero errors and
+  the same 17 existing warnings; native ABI and 16 KB alignment packaging checks pass.
+- The 0.1.3 APK (version code 4) has the same signing certificate as the published
+  0.1.2 APK. An in-place emulator update preserves settings, encrypted identity and
+  synthetic check-in history; a new check-in uses the same permanent identity.
+- Reconstructed the 0.1.3 APK from its five synced archive parts in a separate
+  directory and verified that its bytes and SHA-256 match the tested APK.
+- The public GitHub release list was reachable without authentication and contained
+  the existing 0.1.0–0.1.2 pilot prereleases and their APK download assets. The newer
+  version UI scenarios use synthetic releases and intercepted browser intents;
+  they do not download or install a future release.
+
 ## Single-scan pairing — 0.1.2
 
 - Core: 23 passing tests, including 16 connection tests with real Ed25519 signatures.
