@@ -1,277 +1,212 @@
 # SeniorLink
 
-A directly installed Android app for voluntary family safety sharing. Install the
-same APK on the senior's phone and each caregiver's phone. The sharing phone
-explicitly approves every caregiver; caregivers catch up when they open the app.
+SeniorLink is an Android app for voluntary family check-ins. Your family member
+chooses which updates to share from their phone and approves each caregiver.
+Caregivers open the same app on their own phones to see check-ins, recent phone
+activity, locations, selected SMS and readings from compatible wearables. Updates
+travel over an encrypted phone-to-phone connection; you don't need to run a server.
 
-## Get the APK without building
+**[Download the Android app](https://github.com/Horkyze/SeniorLink/releases/download/v0.1.6/SeniorLink-0.1.6-debug.apk)**
+· [Release notes](https://github.com/Horkyze/SeniorLink/releases/tag/v0.1.6)
+· [Wearable setup](docs/wearables.md)
+· [Build from source](#building-and-contributing)
 
-Download **[SeniorLink-0.1.6-debug.apk](https://github.com/Horkyze/SeniorLink/releases/download/v0.1.6/SeniorLink-0.1.6-debug.apk)**
-from the **[v0.1.6 prerelease](https://github.com/Horkyze/SeniorLink/releases/tag/v0.1.6)**.
-This version adds direct Bluetooth wearable collection without Samsung Health.
-See [wearable setup and compatibility](docs/wearables.md); update **all paired
-phones** because sync protocol 2 cannot communicate with older versions.
-Physical Galaxy Fit3 testing remains outstanding.
-The release assets include `SHA256SUMS` for verifying the download.
+For example, your grandfather can share an “I'm okay” check-in and readings from a
+nearby Bluetooth band. His phone saves the updates, and your phone catches up when
+you open SeniorLink while his app is sharing and reachable. Other approved family
+members can catch up independently on their own phones.
 
-For a synced checkout, the same APK is also carried as small archive parts because
-the full APK exceeds the thread's binary-file sync limit. Restore and checksum-verify
-it to `dist/SeniorLink-0.1.6-debug.apk` with:
+This is an early **family pilot**, not a medical device or emergency-response
+service. It does not send emergency alerts or guarantee continuous monitoring.
+
+## Get started
+
+You need **Android 8.0 or newer** on the sharing phone and every caregiver phone.
+Both roles use the same APK (the Android installation file).
+
+1. **Install SeniorLink on each phone.** Download the APK above and open it.
+   Android may ask you to allow installation from the browser or file app.
+2. **Choose each phone's role.** Your family member chooses **Share my information**;
+   everyone receiving updates chooses **I'm a caregiver**.
+3. **Connect a caregiver.** Keep both apps open and online. On the sharing phone,
+   open **Phones → Connect a caregiver**. On the caregiver phone, open
+   **Phones → Scan QR** and scan the code.
+4. **Confirm together.** Compare the four-character code on both phones. If it
+   matches, tap **Codes match — connect** on the sharing phone. Repeat for each
+   caregiver. Approval gives access to retained history for enabled features while
+   sharing is on.
+5. **Choose what to share.** On the sharing phone, open **Settings**, select the
+   features and tap **Save settings**. Then open **Updates → Start sharing**,
+   grant the requested permissions and tap Start again.
+6. **Try a check-in.** Tap **I'm okay — check in** on the sharing phone. Open the
+   caregiver app to see it arrive.
+
+A notification stays visible while sharing. Use **Pause sharing** in the app or
+notification to stop collecting and sharing. Pause before changing settings.
+Removing a caregiver stops future access, but cannot erase updates already received.
+
+**Updating an existing installation?** Install 0.1.6 on **all paired phones**;
+its synchronization protocol cannot communicate with older versions. The published
+APK uses the same signing key as versions 0.1.0–0.1.5, so install it as an update
+without uninstalling to keep pairing and history. Versions 0.1.3 onward check for
+updates when opened; 0.1.5 onward also offers **Settings → App updates → Check for updates**.
+The release includes `SHA256SUMS` if you want to verify the download.
+
+## What can be shared?
+
+Your family member controls the optional features. Caregiver mode only receives
+updates; it does not monitor the caregiver's own phone or wearable.
+
+| Update | What caregivers see |
+| --- | --- |
+| **“I'm okay” check-in** | A timestamped message sent by your family member tapping a button. |
+| **Phone activity** | When Android reports that the phone was unlocked; this is a best-effort signal. |
+| **Location** | The latest saved location and previous fixes on a map, with times and accuracy. Updates are approximately every 15 minutes when available. |
+| **Selected SMS** | Messages from an exact list of allowed senders. Message bodies are off by default. |
+| **Wearable readings** | Supported Bluetooth measurements, receipt times and summaries. Available data depends on the device. |
+
+Open **Updates** for recent activity, **Location** for the map and **Wearable** for
+wearable readings. Always check the timestamps: saved information may be old.
+
+### Connect a wearable
+
+On the sharing phone, pause sharing and open **Settings → Bluetooth wearable →
+Choose wearable**. Select the nearby band, enable **Share wearable readings**,
+save and start sharing again. Allow Nearby devices permission when asked; Android
+8–11 require Location permission and the system Location setting for scanning.
+
+The band sends readings directly to the sharing phone over Bluetooth. The phone
+forwards summaries to caregivers. Samsung Health and Health Connect are not part of this
+collection path. Supported standard measurements include heart rate, skin contact,
+battery, temperature, oxygen saturation and blood pressure **where the device
+exposes them**. This does not replace initial band setup or firmware management.
+
+**Galaxy Fit3 compatibility still needs testing on a physical band.** Heart rate
+and skin contact are the expected first useful readings; standard battery data may
+not be available. Proprietary sleep, steps, stress, ECG and stored history are not
+collected. The band must stay within Bluetooth range of the sharing phone; readings
+missed during a disconnection cannot be recovered later.
+
+See [wearable setup, supported data and the real-device checklist](docs/wearables.md).
+
+### Optional Telegram forwarding
+
+The sharing phone can also forward enabled updates to a Telegram chat or channel.
+Create a bot through Telegram's BotFather, give it permission to post to the
+destination, and enter its token and chat/channel ID in SeniorLink's settings.
+Save, use **Send test to saved destination**, then enable forwarding if wanted.
+Only newly collected updates are queued; disabling forwarding clears the queue.
+
+Telegram bot messages are **not end-to-end encrypted**. Keep sensitive SMS bodies
+disabled; the app's verification-code filtering cannot catch every secret. Network
+retries can occasionally duplicate a Telegram post.
+
+## When will updates arrive?
+
+- **Both phones must be reachable at the same time.** The sharing app must be
+  running, and the caregiver app checks for updates while open. A caregiver cannot
+  remotely wake a stopped sharing app. There are no closed-app push alerts.
+- **Missed deliveries can catch up.** Collected history stays on the phones for up
+  to seven days, capped at 10,000 events per source. Each caregiver catches up
+  independently. Events that were never collected cannot be recovered.
+- **Android can interrupt sharing.** After a reboot or force-stop, open SeniorLink
+  on the sharing phone and tap Start again. Battery restrictions, revoked
+  permissions or disabled Bluetooth/location can also interrupt collection.
+- **Offline views show saved data.** Read the recorded times and connection status.
+  Map tiles need internet for uncached areas; saved coordinates remain readable.
+
+Test behavior and battery use on your family's actual devices before using it for
+routine check-ins. See the [real-phone acceptance checklist](docs/acceptance.md)
+and [completed verification](docs/verification.md).
+
+## Privacy and control
+
+Phone-to-phone sharing uses **iroh** with end-to-end encryption and explicit
+caregiver approval. Public discovery and relay services help phones connect;
+relays cannot read the updates and do not store messages for offline phones.
+Connection metadata is not hidden, and public infrastructure has no availability
+guarantee. The optional Telegram output has different privacy properties, as noted above.
+
+History is stored in each app's private database. Cloud/device-transfer backups
+are disabled, and the UI blocks screenshots and recent-app thumbnails. Clearing
+app storage or uninstalling deletes local identity, pairing and history.
+Disabling a feature withdraws its retained local events and queued Telegram output;
+copies already delivered to caregivers cannot be recalled.
+
+Maps use OpenStreetMap tiles. The tile service receives the viewer's IP address
+and requested map areas; family names, timestamps and the location history are
+rendered on the phone. Maps need no API key or Google Play Services. See the
+[OpenStreetMap tile policy](https://operations.osmfoundation.org/policies/tiles/).
+
+## Troubleshooting
+
+| Problem | What to try |
+| --- | --- |
+| No updates arrive | Check that sharing is started, both phones are online, the caregiver app is open and all phones run 0.1.6. Check permissions and battery restrictions on the sharing phone. |
+| Camera is unavailable for pairing | Use **Copy invitation / Share invitation** on the sharing phone and **Use a shared invitation instead** on the caregiver. Compare the verification code through a trusted conversation. |
+| Pairing expired or the codes differ | Start a new invitation on the sharing phone and keep both apps open. Invitations expire after five minutes. |
+| Wearable is connected but has no readings | Enable measurement on the band, check skin contact and inspect **Wearable → Available Bluetooth data**. Follow the [device checklist](docs/wearables.md#fit3-expectations-and-verification). |
+| An APK cannot update the installed app | It may use a different signing key. Use the published APK; do not uninstall merely to bypass a signing mismatch if you need to keep history and pairing. |
+
+## Building and contributing
+
+Project instructions are in [AGENTS.md](AGENTS.md). The main components are
+[`app/`](app/) (Android UI, storage, collection and networking), [`core/`](core/)
+(protocol, validation and Bluetooth decoding) and [`native/`](native/) (iroh native
+build). See [pairing internals](docs/pairing.md) and [native build notes](native/README.md).
+
+<details>
+<summary><strong>Build, test and package the Android app</strong></summary>
+
+The build uses JDK 21, Android SDK 35, build tools 35.0.0, NDK 28.2.13676358 and
+Rust 1.94.0. Gradle and native dependencies are pinned. ARM64, ARMv7 and x86-64
+are included in the normal APK.
+
+On an Apple Silicon Mac, run from the repository root:
+
+```sh
+# Installs tools into ignored .build-tools/ and accepts the Android SDK terms.
+sh scripts/bootstrap-macos.sh
+. ./scripts/env.sh
+sh scripts/build-native.sh
+./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+python3 scripts/verify-apk.py
+```
+
+The native script needs `rustup` on PATH or in `~/.cargo/bin`. It installs its Rust
+toolchains and dependencies inside `.build-tools/`. On Linux, provide JDK 21,
+`ANDROID_HOME`, the NDK and rustup, then run the native build, Gradle and APK checks.
+The installable output is `app/build/outputs/apk/debug/app-debug.apk`.
+
+For Android UI, service and native transport checks, connect an emulator or an
+authorized test device and run:
+
+```sh
+./gradlew :app:connectedDebugAndroidTest
+```
+
+Use synthetic data in tests and never put real Telegram credentials in fixtures.
+Some transport tests require internet and the public iroh discovery/relay services.
+Record actual results separately from unverified physical-device behavior in
+[docs/verification.md](docs/verification.md).
+
+`sh scripts/build-pilot.sh` builds, checks and packages the APK into `dist/`.
+The checkout carries small archive parts of the published pilot APK, which can
+also be restored without an Android toolchain using Python 3:
 
 ```sh
 python3 scripts/unpack-pilot.py
 ```
 
-This needs only Python 3, not Java, Rust or Android Studio. Copy the resulting APK
-to the phones. The archive parts themselves are not installable Android packages.
+This reconstructs and checksum-verifies `dist/SeniorLink-0.1.6-debug.apk`.
+The archive parts are not themselves installable. Full APKs, signing material and
+build output remain ignored. CI builds an APK and uploads test reports; it does
+not publish a release automatically.
 
-This is a **debug-signed family pilot**, not a production or emergency-response app.
-Install the same APK on the sharing phone and each caregiver's phone. The published
-0.1.6 APK uses the same signing certificate as the published 0.1.0–0.1.5 APKs,
-so it can update those installations without uninstalling or clearing pairing/history.
-Versions 0.1.3–0.1.5 check for this update when you open the app. For versions
-0.1.0–0.1.2, install 0.1.6 manually using the link above to enable update checks.
+These are **debug-signed pilot builds**. An APK built on another machine or in CI
+may have a different signing key and cannot update an existing installation.
+Preserve the original signing key for compatible updates. Keep the Kotlin iroh API
+and native FFI versions aligned; follow [native/README.md](native/README.md) when
+changing either.
 
-## Features
-
-- **Two roles:** sharing phone and caregiver. Caregiver mode never monitors its own
-  SMS, location or unlock activity.
-- **iroh peer connections:** persistent public-key identities, single-scan
-  pairing, encrypted delivery, and an approved-peer list.
-- **In-app QR scanner:** bundled offline decoding, no external camera app or Google
-  Play Services needed. Both phones display the same four-character verification
-  code; the sharing phone explicitly confirms access.
-- **Independent catch-up:** each caregiver has its own durable synchronization
-  cursor. One offline caregiver does not block another.
-- **Phone unlock activity:** best-effort observation of Android's unlock broadcast.
-- **Location:** opt-in, approximately 15-minute updates when a provider supplies a
-  fix, with accuracy and timestamps. Network location is preferred; GPS is a fallback.
-- **Location map:** open **Location** or **Updates → View location map** for an
-  interactive map of the latest known position and previous fixes. Choose a phone,
-  tap a map marker or history entry, and use **Latest location** or **Show history**
-  to frame the map. Teal marks the latest fix; amber marks previous fixes. Each
-  selection shows its recorded time and accuracy. This is saved history, not live tracking.
-- **SMS:** separately enabled, exact sender allowlist required, multipart messages
-  assembled. Bodies are off by default; likely verification codes are withheld.
-- **Manual “I'm okay” check-in.**
-- **Direct Bluetooth wearables (0.1.6):** select a band under **Settings → Bluetooth
-  wearable**, enable sharing, save and start. Collects standard heart rate/contact,
-  beat intervals, energy, battery, thermometer, pulse oximeter and blood-pressure
-  measurements where exposed, plus device details. Samsung Health is not used.
-  **Wearable** shows current/cached values, individual timestamps, summaries and
-  the services found on the selected device. Fit3 hardware verification remains
-  outstanding; unsupported/proprietary data is not fabricated. See
-  [wearables](docs/wearables.md).
-- **Optional Telegram forwarding:** bot token plus chat/channel ID, test message,
-  persistent retry queue, rate-limit handling. Only the sharing phone posts.
-- **Visible monitoring:** foreground notification with a Pause action. No hidden
-  collection, remote activation, boot receiver or automatic restart after force-stop.
-- **Update prompt on startup:** checks the public GitHub releases in the background,
-  including family pilot prereleases. A newer version with an APK offers **Download
-  update** or **Later**. The download opens in your browser; install the APK to update.
-  Offline or failed checks are silent. Dismissing lasts until the next app launch;
-  rotating the phone or returning from another app does not repeat the check.
-- **Manual update check:** open **Settings → App updates** to see the current
-  version and tap **Check for updates**. The button is disabled while checking.
-  A successful check reports that you're up to date or offers the newer APK;
-  a failed check reports the problem and allows a retry. You can check again after
-  choosing Later without restarting the app. This is available in both roles,
-  including while sharing is active.
-
-This is an initial family pilot, not an emergency-response or medical device.
-
-## Install and pair
-
-Requires Android 8.0 (API 26) or later on ARM64, ARMv7 or x86-64.
-
-1. Download the APK above (or build it below) and install the same version on all phones.
-   Android may ask you to allow installation from the app opening the APK.
-2. On your grandfather's phone choose **Share my information**. On the other
-   phones choose **I'm a caregiver**.
-3. Keep both apps open and online. On your grandfather's phone, open **Phones →
-   Connect a caregiver**. On the caregiver's phone, open **Phones → Scan QR** and
-   scan it once. Each phone has an optional name field, such as Grandad or Anna.
-4. Both phones display the same four-character code, for example **K7MP**. Compare
-   them together. If they match, tap **Codes match — connect** on your grandfather's
-   phone. Both phones show **You're connected**. If they differ, tap **Codes don't
-   match** and start again. Repeat this one-scan process for each caregiver.
-   Approval includes retained history for currently enabled features while sharing
-   is on. No sharing starts automatically.
-5. On his phone, use **Settings** to choose the features, then **Save settings**.
-   For SMS, enter full sender numbers (including country code) or exact sender
-   names, one per line. No wildcard matching.
-6. Go to **Updates → Start sharing**, grant the selected Android permissions,
-   then tap Start again. A notification remains visible while sharing.
-7. Tap **I'm okay — check in**. Open the caregiver app to receive it. Missed
-   retained events arrive automatically; current updates are polled every 15 seconds
-   while the caregiver app is visible.
-
-Camera is requested only when the caregiver taps Scan QR. Cancel/back or a camera
-error does not add a phone. No camera frames are saved or uploaded. If Camera is
-denied or unavailable, the sharing phone can use **Copy invitation / Share invitation**;
-the caregiver opens **Use a shared invitation instead**, pastes it, and taps Connect.
-Compare the four-character code through a trusted conversation before confirming.
-
-Invitations expire after five minutes. A rejected request requires a new QR, and a
-reconnect keeps the exact same verification code. Keep both apps open until connected.
-If an attempt expires or a phone restarts, show a new QR and try again. Existing paired
-phones continue working; old public-key QR codes ask you to update both apps.
-
-To stop collecting and sharing, use **Pause sharing** in the app or notification.
-Pause before editing feature settings. Removing a paired phone stops future access;
-it cannot recall information already received.
-
-### Telegram
-
-Create a bot through Telegram's BotFather and grant it posting permission in the
-destination channel. On the **sharing phone only**, enter the bot token and a
-numeric chat/channel ID (often negative) or `@channel` name. Save, then use
-**Send test to saved destination**. The test is an explicit outbound message even
-when automatic forwarding is disabled.
-
-Enable **Forward enabled updates to Telegram** to forward newly collected events
-while sharing is active. Old events are not retroactively queued when enabling it.
-Disabling Telegram clears its pending queue. Tokens are encrypted locally, never
-embedded in source, logs, pairing codes or backups.
-
-Telegram bot/channel messages are **not end-to-end encrypted**. SMS body filtering
-is only a precaution, not a guarantee that every secret will be detected. Keep
-bodies disabled for banking, verification and other sensitive senders. A retry
-after an ambiguous network failure can occasionally duplicate a Telegram post.
-
-## Catch-up and reliability
-
-- Your grandfather's app must be running and reachable at the same time as a
-  caregiver app for synchronization. Opening a caregiver app cannot wake a
-  suspended sharing app through iroh.
-- If unreachable, the caregiver keeps its cached information, timestamps and last
-  contact. This information may be stale. There are no closed-app push alerts.
-- Android battery restrictions, Doze, revoked permissions, a disabled location
-  provider, force-stop or a reboot can interrupt collection/networking. After
-  reboot or force-stop, open the sharing app and tap Start again.
-- A foreground service reduces interruptions; it is not an always-online guarantee.
-  It uses the `specialUse` type for user-enabled safety sharing and additionally
-  the `location` type when location is enabled and `connectedDevice` when wearable
-  collection is enabled, not a perpetual `dataSync` service.
-- Unlock observation is not a complete audit log. Permission denial is respected.
-- Retention is seven days, capped at 10,000 events per source; pruning occurs
-  during use/synchronization. Updates shows the latest 100 events; Location
-  independently shows up to 1,000 retained fixes per phone, ordered by the time
-  Android recorded them. Busy SMS/unlock activity cannot crowd locations out of
-  the map. Caregivers are
-  told when history expired or was withdrawn before receipt.
-- Map tiles require internet for uncached areas. Coordinates and history remain
-  readable without tiles. OpenStreetMap receives the viewer's IP address and
-  requested map areas; names, event timestamps and the location history itself
-  are rendered on-device. The map needs no API key, Google Play Services or
-  location permission on a caregiver phone. Tiles use normal HTTP caching, an
-  app-specific User-Agent, visible attribution and no area prefetch/downloads,
-  following the [OpenStreetMap tile policy](https://operations.osmfoundation.org/policies/tiles/).
-- The sharing phone sends each caregiver's batch independently. Events and cursors
-  are committed atomically before acknowledgment; retries do not create duplicate
-  caregiver events.
-- Iroh uses public discovery/relays as needed. Relays cannot read payloads, but
-  connection metadata is not hidden. Relays do not store messages for offline phones.
-  Public infrastructure has no availability guarantee.
-
-Verify behavior and battery use on the actual phones before relying on it for
-routine family check-ins. Missing contact alone is neither proof of safety nor
-proof of an emergency.
-
-## Build
-
-The normal build uses JDK 21, Android SDK 35, build tools 35.0.0, Android NDK
-28.2.13676358 and Rust 1.94.0. Gradle is pinned by the checked-in wrapper, including
-its distribution checksum. Native Cargo dependencies are locked.
-
-On an Apple Silicon Mac, dependencies can be installed inside this checkout:
-
-```sh
-# Downloads tools into ignored .build-tools/ and accepts the Android SDK terms.
-sh scripts/bootstrap-macos.sh
-. ./scripts/env.sh
-sh scripts/build-native.sh
-./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
-```
-
-The native script requires `rustup` on PATH or in `~/.cargo/bin`; it installs
-toolchains/targets and Cargo downloads into `.build-tools/`, not the global
-toolchain. On Linux, supply JDK 21, `ANDROID_HOME`, NDK and rustup, then run the last
-two commands. CI in `.github/workflows/android.yml` builds all supported ABIs and
-uploads an installable pilot APK.
-
-Output:
-
-```text
-app/build/outputs/apk/debug/app-debug.apk
-```
-
-`sh scripts/build-pilot.sh` runs the native build, checks, and APK packaging, then
-copies the installable file and checksum to `dist/`. This initial handoff includes
-that versioned pilot APK as compressed archive parts so it can be installed without
-setting up a build machine. The full APK, other generated output and all signing
-material remain ignored. Nothing is
-automatically published to an app store or release service.
-
-The APK is a **debug-signed pilot build**, not a production signing setup. Keep
-the same signing key for updates; APKs from another machine or CI may use a
-different debug key and require uninstalling, which deletes history and pairing.
-Do not uninstall an existing installation merely to update it without considering
-this data loss.
-
-The official iroh Android AAR was evaluated, but its bundled native libraries
-were 4 KB-aligned and used an older transport. We rebuild the matching FFI source
-with **iroh 1.1.0 security fixes and 16 KB ELF alignment**. See
-[`native/README.md`](native/README.md) for the source pin and upgrade rule.
-Do not mix unrelated Kotlin and native FFI versions.
-
-### Tests
-
-```sh
-./gradlew :core:test :app:testDebugUnitTest :app:lintDebug
-
-# With an emulator or authorized test device connected:
-./gradlew :app:connectedDebugAndroidTest
-```
-
-- Core tests cover protocol validation, forged source IDs, bounded payloads,
-  durable-before-ACK ordering, reconnect after a lost ACK, and SMS policy.
-- Android SQLite tests cover two caregivers, restart recovery, invalid batches,
-  removal, retention, consent withdrawal and Telegram queue cleanup.
-- Instrumented tests use real native QUIC connections and Android SQLite to
-  synchronize two caregivers and reject unapproved/revoked identities. They also
-  exercise Android Keystore persistence and the actual Compose Start/check-in/Pause
-  workflow, including continued sharing while the sharing screen is backgrounded.
-- `PublicDiscoveryTest` dials using only a public key and requires Internet plus
-  the public iroh discovery/relay infrastructure.
-- Pairing tests cover signed identity verification, matching codes, nonce commitments,
-  forged or changed requests, expiry, rejection, lost replies, storage failures and
-  revocation. A native transport test pairs once and then receives a check-in using
-  the permanent identities. UI tests cover role-specific setup, confirmation screens,
-  scanner cancellation, permission denial, manual fallback and activity recreation.
-  QR decoding and camera lifecycle are tested separately.
-
-Tests use synthetic events. Do not enter real Telegram credentials into tests.
-The completed checks are recorded in [`docs/verification.md`](docs/verification.md).
-The remaining real-phone acceptance checklist is in [`docs/acceptance.md`](docs/acceptance.md).
-
-## Code map
-
-- `core/`: versioned wire models, message validation, pairing/SMS policy and the
-  durable-before-ACK synchronization rule.
-- `app/.../data/Store.kt`: SQLite transactions, retention, peer cursors and outbox.
-  SQLiteOpenHelper is used directly rather than introducing a Room code-generation
-  pipeline for this small schema.
-- `app/.../data/Secrets.kt`: Keystore-backed AES-GCM storage in Android's no-backup
-  directory. History stays in the app-private database.
-- `app/.../net/IrohSync.kt`: authenticated peer authorization and lifecycle-owned
-  network connections.
-- `app/.../monitor/`: foreground monitoring and SMS receiver.
-- `app/.../net/Telegram.kt`: optional HTTPS output, isolated from peer sync.
-- `app/.../pairing/`: temporary connection endpoints and the single-scan UI.
-  [`docs/pairing.md`](docs/pairing.md) describes the signed handshake and verification code.
-- `MainActivity` / `MainViewModel`: Compose UI, role setup and explicit controls.
-
-Cloud/device-transfer backups are disabled. The UI blocks screenshots and recent-app
-thumbnails to reduce accidental disclosure. Resetting Android app storage changes
-the identity and requires pairing again.
+</details>
