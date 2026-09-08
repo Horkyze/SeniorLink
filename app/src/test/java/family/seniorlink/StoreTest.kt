@@ -128,6 +128,46 @@ class StoreTest {
         }
     }
 
+    @Test fun `wearable summaries sync durably and consent withdrawal removes local history and forwarding`() {
+        sharer().use { db ->
+            db.updateSettings(db.settings.copy(wearable = true, wearableName = "Fit3", wearableAddress = "AA:BB:CC:DD:EE:FF", telegram = true), source)
+            val summary = WearableSummary("Fit3", listOf(WearableMetricSummary(WearableMetric.HEART_RATE, now, now, 1, 72.0, 72.0, 72.0, 72.0)))
+            val event = db.append(source, Event(0, Kind.WEARABLE, now, wearable = summary), now)
+            inbox().use { receiver ->
+                receiver.commit(db.batch(source, 0, now), now)
+                assertEquals(listOf(event), receiver.wearables(source, now).map { it.event })
+                assertEquals(1L, receiver.cursor(source))
+                receiver.commit(db.batch(source, 1, now), now)
+                assertEquals(1, receiver.wearables(source, now).size)
+            }
+            repeat(110) { db.append(source, Event(0, Kind.UNLOCK, now + it), now + it) }
+            assertFalse(db.recent(now + 110).any { it.event.kind == Kind.WEARABLE })
+            assertEquals(1, db.wearables(source, now + 110).size)
+            db.updateSettings(db.settings.copy(wearable = false), source)
+            assertTrue(db.wearables(source, now + 110).isEmpty())
+            assertEquals(110L, db.pendingTelegram())
+            assertEquals(111L, db.latest(source))
+            try { db.append(source, event.copy(sequence = 0), now); fail("Disabled wearable accepted") } catch (_: IllegalArgumentException) { }
+        }
+    }
+
+    @Test fun `changing the selected wearable removes old device data without affecting other events`() {
+        sharer().use { db ->
+            db.updateSettings(db.settings.copy(wearable = true, wearableName = "Fit3", wearableAddress = "AA:BB:CC:DD:EE:FF"), source)
+            val oldDeviceId = db.settings.wearableId
+            assertTrue(oldDeviceId.isNotBlank())
+            assertFalse(oldDeviceId.contains("AA:BB"))
+            db.updateSettings(db.settings.copy(unlock = true), source)
+            assertEquals(oldDeviceId, db.settings.wearableId)
+            db.append(source, Event(0, Kind.WEARABLE, now, wearable = WearableSummary("Fit3", information = mapOf("Model" to "Fit3"))), now)
+            db.append(source, Event(0, Kind.UNLOCK, now), now)
+            db.updateSettings(db.settings.copy(wearableAddress = "AA:BB:CC:DD:EE:00"), source)
+            assertNotEquals(oldDeviceId, db.settings.wearableId)
+            assertTrue(db.wearables(source, now).isEmpty())
+            assertEquals(listOf(Kind.UNLOCK), db.recent(now).map { it.event.kind })
+        }
+    }
+
     @Test fun `location history survives a busy feed and sorts by fix time per source`() {
         sharer().use { db ->
             db.updateSettings(db.settings.copy(location = true), source)

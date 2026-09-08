@@ -36,7 +36,8 @@ class ProtocolTest {
         assertFailsWith<IllegalArgumentException> { batch.validate("b".repeat(64), 0) }
         assertFailsWith<IllegalArgumentException> { batch.copy(events = listOf(event, event)).validate(source, 0) }
         assertFailsWith<IllegalArgumentException> { batch.copy(through = 0).validate(source, 0) }
-        assertFailsWith<IllegalArgumentException> { batch.copy(version = 2).validate(source, 0) }
+        assertFailsWith<IllegalArgumentException> { batch.copy(version = Wire.VERSION + 1).validate(source, 0) }
+        assertFailsWith<IllegalArgumentException> { batch.copy(version = 1).validate(source, 0) }
         assertFailsWith<IllegalArgumentException> {
             event.copy(kind = Kind.LOCATION, latitude = Double.NaN).validate()
         }

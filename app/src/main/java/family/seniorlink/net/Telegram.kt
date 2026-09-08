@@ -92,6 +92,16 @@ object Telegram {
             Kind.CHECK_IN -> "I'm okay — manual check-in"
             Kind.LOCATION -> "Location: ${event.latitude}, ${event.longitude} (±${event.accuracy?.toInt()} m)"
             Kind.SMS -> "SMS from ${event.sender}\n${event.body ?: "[Message body not shared]"}"
+            Kind.WEARABLE -> requireNotNull(event.wearable).let { wearable ->
+                buildString {
+                    append("Wearable: ${wearable.deviceName}\nPhone receipt times; readings may be delayed.\n")
+                    wearable.metrics.forEach {
+                        append("${it.metric.label}: ${it.latest} ${it.metric.unit} (received ${Instant.ofEpochMilli(it.lastAt)}; ${it.count} samples, range ${it.minimum}–${it.maximum})\n")
+                    }
+                    wearable.information.forEach { (key, value) -> append("$key: $value\n") }
+                    wearable.notes.forEach { append("$it\n") }
+                }
+            }
         })
     }
 }

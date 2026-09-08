@@ -1,5 +1,47 @@
 # Verification
 
+## Direct Bluetooth wearable collection — 0.1.6
+
+- 39 core and 37 Android unit tests pass. New coverage includes Fit3-shaped HR
+  packets, every HR/PLX/BP optional-field combination and truncation, signed
+  IEEE-11073 decimal floats and special values, contact loss, invalid quality
+  indicators, normalized units, bounded summaries and protocol-2 validation.
+- Simulated-peripheral collector tests cover known service/characteristic pairs,
+  optional read failures, malformed notifications, reconnect with a fresh link,
+  permission revocation, and discarding buffered data on Pause. Permission tests
+  exercise Android 11 and Android 15 rules. SQLite tests cover durable wearable
+  catch-up, busy-feed isolation, consent withdrawal, Telegram queue removal and
+  replacement-device IDs without exposing Bluetooth addresses.
+- Nine selected Android 17 / API 37.1 ARM64 emulator tests pass: five wearable UI
+  checks, the connected-device service's unavailable-band/background/Pause flow,
+  two native iroh/Keystore checks and the existing Start/check-in/background/Pause
+  workflow. Real native encrypted connections deliver a synthetic wearable event
+  independently to two caregivers and reject unapproved/revoked peers.
+- All five wearable UI tests also pass at 2× font scale. Normal and large-text
+  captures were visually inspected. They use synthetic data; production screenshot
+  protection remains enabled. The emulator's font scale was restored afterwards.
+- Debug and instrumentation APK builds and lint pass (zero errors). The APK's
+  debug signing certificate matches the existing 0.1.5 APK. Native ABI and 16 KB
+  ELF/ZIP alignment verification passes for ARM64, ARMv7 and x86-64.
+- Reconstructed the 0.1.6 APK from six archive parts in an isolated directory.
+  Its bytes and SHA-256 match the tested APK; `dist/SHA256SUMS` records the hash.
+
+Update **all paired phones** to the protocol-2 build. Existing settings, identity,
+pairing and history remain readable; no database reset or migration is needed.
+Physical Fit3 service discovery, actual sensor readings, background reliability and battery impact have
+**not** been verified: no physical band/phone was connected to this workspace.
+Follow the [real-device checklist](wearables.md#fit3-expectations-and-verification).
+
+Commands:
+
+```sh
+. ./scripts/env.sh
+./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest
+# Install both built APKs on the emulator, then:
+adb shell am instrument -w -r -e class family.seniorlink.WearableUiTest,family.seniorlink.WearableServiceTest,family.seniorlink.IrohDeviceTest,family.seniorlink.MonitoringUiTest family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+python3 scripts/verify-apk.py
+```
+
 ## Version and manual update checks in Settings — 0.1.5
 
 - Core: 23 passing tests. Android unit tests: 28 passing tests. Update checks

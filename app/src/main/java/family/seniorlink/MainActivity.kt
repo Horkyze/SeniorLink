@@ -36,6 +36,9 @@ import family.seniorlink.monitor.MonitorService
 import family.seniorlink.updates.UpdateDialog
 import family.seniorlink.updates.UpdateViewModel
 import family.seniorlink.updates.UpdateSettings
+import family.seniorlink.wearable.WearableContent
+import family.seniorlink.wearable.WearableSettings
+import family.seniorlink.wearable.WearableSummaryContent
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -73,6 +76,7 @@ internal fun SeniorScreen(model: MainViewModel, updates: UpdateViewModel) {
     val monitorStatus by model.app.monitorStatus.collectAsStateWithLifecycle()
     val telegramStatus by model.app.telegramStatus.collectAsStateWithLifecycle()
     val peerStatus by model.app.peerStatus.collectAsStateWithLifecycle()
+    val wearableState by model.app.wearableState.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var locationSource by rememberSaveable { mutableStateOf<String?>(null) }
     var locationSequence by rememberSaveable { mutableStateOf<Long?>(null) }
@@ -118,7 +122,7 @@ internal fun SeniorScreen(model: MainViewModel, updates: UpdateViewModel) {
             }
             if (state.ready && state.settings.role != Role.UNSET) {
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("Updates", "Location", "Phones", "Settings").forEachIndexed { index, title ->
+                    listOf("Updates", "Location", "Phones", "Settings", "Wearable").forEachIndexed { index, title ->
                         FilterChip(selected = tab == index, onClick = { tab = index }, label = { Text(title) })
                     }
                 }
@@ -186,6 +190,7 @@ internal fun SeniorScreen(model: MainViewModel, updates: UpdateViewModel) {
                             Panel("Privacy and reliability") {
                                 Text("History stays on these phones for up to 7 days, capped at 10,000 events per source. Updates shows the latest 100 events.")
                                 Text("The Location map shows up to 1,000 retained fixes per phone. Map tiles come from OpenStreetMap; the tile service sees your IP address and the map areas you view.")
+                                Text("Wearable readings require the same updated SeniorLink version on both phones. Bluetooth collection works only within range; missed readings cannot be recovered later.")
                                 Text("iroh encrypts connections end to end. Public discovery and relays may see connection metadata, not message contents.")
                                 Text("Android can stop the sharing service. After reboot or force-stop, open SeniorLink on the sharing phone and tap Start.")
                                 OutlinedButton(onClick = {
@@ -193,6 +198,7 @@ internal fun SeniorScreen(model: MainViewModel, updates: UpdateViewModel) {
                                 }) { Text("Android app settings") }
                             }
                         }
+                        4 -> WearableContent(state, wearableState) { tab = 3 }
                     }
                 }
             }
@@ -250,6 +256,7 @@ private fun SharingSettings(state: ScreenState, running: Boolean, telegramStatus
             Text("Bodies can contain private conversations and banking details. Likely codes are withheld, but filtering cannot detect every secret.")
         }
     }
+    WearableSettings(draft, !running, model.wearableScanner) { draft = it }
     Panel("Optional Telegram output") {
         Toggle("Forward enabled updates to Telegram", draft.telegram, { draft = draft.copy(telegram = it) }, !running)
         Text("Telegram bot/channel messages are NOT end-to-end encrypted. Only this sharing phone posts. Network retries can occasionally duplicate a post.")
@@ -279,6 +286,7 @@ private fun EventCard(stored: StoredEvent, peers: List<Peer>, onLocation: () -> 
         Kind.LOCATION -> "Location update"
         Kind.SMS -> "Incoming SMS"
         Kind.CHECK_IN -> "I'm okay"
+        Kind.WEARABLE -> "Wearable update"
     }) {
         Text("${peers.firstOrNull { it.id == stored.source }?.name ?: "This phone"} • ${formatTime(event.occurredAt)}")
         when (event.kind) {
@@ -292,12 +300,16 @@ private fun EventCard(stored: StoredEvent, peers: List<Peer>, onLocation: () -> 
             }
             Kind.CHECK_IN -> Text("Manual check-in from the sharing phone.")
             Kind.UNLOCK -> Text("Android reported that the phone became available after unlocking.")
+            Kind.WEARABLE -> {
+                Text("Times are Bluetooth receipt times on the sharing phone.")
+                event.wearable?.let { WearableSummaryContent(it) }
+            }
         }
     }
 }
 
 @Composable
-private fun Panel(title: String, content: @Composable ColumnScope.() -> Unit) {
+internal fun Panel(title: String, content: @Composable ColumnScope.() -> Unit) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
@@ -307,7 +319,7 @@ private fun Panel(title: String, content: @Composable ColumnScope.() -> Unit) {
 }
 
 @Composable
-private fun Toggle(label: String, checked: Boolean, change: (Boolean) -> Unit, enabled: Boolean = true) {
+internal fun Toggle(label: String, checked: Boolean, change: (Boolean) -> Unit, enabled: Boolean = true) {
     Row(
         Modifier.fillMaxWidth().toggleable(
             value = checked, enabled = enabled, role = androidx.compose.ui.semantics.Role.Switch,
@@ -320,5 +332,5 @@ private fun Toggle(label: String, checked: Boolean, change: (Boolean) -> Unit, e
     }
 }
 
-private fun formatTime(time: Long): String = if (time == 0L) "Never" else
+internal fun formatTime(time: Long): String = if (time == 0L) "Never" else
     DateTimeFormatter.ofPattern("d MMM, HH:mm").withZone(ZoneId.systemDefault()).format(Instant.ofEpochMilli(time))

@@ -22,6 +22,7 @@ data class ScreenState(
     val peers: List<Peer> = emptyList(),
     val events: List<StoredEvent> = emptyList(),
     val locations: List<StoredEvent> = emptyList(),
+    val wearables: List<StoredEvent> = emptyList(),
     val pendingTelegram: Long = 0,
     val tokenSaved: Boolean = false,
     val fatalError: String? = null,
@@ -32,6 +33,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val app = application as SeniorApp
     val screen = MutableStateFlow(ScreenState())
     val pairing = PairingController(viewModelScope, app.store) { app.identity }
+    val wearableScanner = family.seniorlink.wearable.WearableScanner(app)
     private val monitorIntent = Intent(app, MonitorService::class.java)
     private var visible = false
     private var receiverJob: Job? = null
@@ -64,6 +66,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 ready = true, publicId = app.publicId, settings = app.store.settings,
                 peers = peers, events = app.store.recent(),
                 locations = sources.flatMap { app.store.locations(it) },
+                wearables = sources.flatMap { app.store.wearables(it) },
                 pendingTelegram = app.store.pendingTelegram(),
                 tokenSaved = app.secrets.read("telegram")?.isNotEmpty() == true,
             )
@@ -73,6 +76,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun foreground(active: Boolean) {
         visible = active
+        if (!active) wearableScanner.stop()
         reconcileReceiver()
     }
 
@@ -108,6 +112,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         require(!settings.sms || settings.smsSenders.lineSequence().any { it.isNotBlank() && it.trim() != "*" }) {
             "Add at least one exact SMS sender before enabling SMS."
         }
+        require(!settings.wearable || android.bluetooth.BluetoothAdapter.checkBluetoothAddress(settings.wearableAddress)) {
+            "Choose a Bluetooth wearable before enabling wearable sharing."
+        }
+        require(!settings.wearable || family.seniorlink.wearable.BleAccess.supported(app)) {
+            "Bluetooth LE is not available on this phone."
+        }
         if (token.isNotBlank()) {
             require(Telegram.validToken(token.trim())) { "The Telegram bot token format is invalid." }
         }
@@ -116,7 +126,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             require(token.isNotBlank() || app.secrets.read("telegram")?.isNotEmpty() == true) { "Enter a bot token." }
         }
         if (token.isNotBlank()) app.secrets.write("telegram", token.trim().toByteArray())
+        val oldWearableAddress = app.store.settings.wearableAddress
         app.store.updateSettings(settings.copy(telegramChat = settings.telegramChat.trim()), app.publicId)
+        if (!settings.wearable || settings.wearableAddress != oldWearableAddress)
+            app.wearableState.value = family.seniorlink.wearable.WearableState()
         message("Settings saved")
     }
 
@@ -147,6 +160,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun pause() {
         // Close the authorization gate before asynchronous service cleanup.
         MonitorService.running.value = false
+        app.wearableState.value = app.wearableState.value.copy(connected = false, status = "Wearable collection is paused")
         app.stopService(monitorIntent)
     }
 
@@ -165,6 +179,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun message(text: String?) { screen.update { it.copy(message = text) } }
+
+    override fun onCleared() { wearableScanner.stop(); super.onCleared() }
 
     private fun action(block: suspend () -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {

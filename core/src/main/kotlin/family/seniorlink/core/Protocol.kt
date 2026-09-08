@@ -8,7 +8,7 @@ import kotlinx.serialization.json.Json
 enum class Role { UNSET, SHARER, CAREGIVER }
 
 @Serializable
-enum class Kind { UNLOCK, LOCATION, SMS, CHECK_IN }
+enum class Kind { UNLOCK, LOCATION, SMS, CHECK_IN, WEARABLE }
 
 @Serializable
 data class Settings(
@@ -20,12 +20,18 @@ data class Settings(
     val smsSenders: String = "",
     val telegram: Boolean = false,
     val telegramChat: String = "",
+    val wearable: Boolean = false,
+    // The Bluetooth address stays on the sharing phone; it is never a wire device identifier.
+    val wearableAddress: String = "",
+    val wearableName: String = "",
+    val wearableId: String = "",
 ) {
     fun allows(kind: Kind): Boolean = when (kind) {
         Kind.UNLOCK -> unlock
         Kind.LOCATION -> location
         Kind.SMS -> sms
         Kind.CHECK_IN -> true
+        Kind.WEARABLE -> wearable
     }
 }
 
@@ -40,11 +46,17 @@ data class Event(
     val latitude: Double? = null,
     val longitude: Double? = null,
     val accuracy: Float? = null,
+    val wearable: WearableSummary? = null,
 ) {
     fun validate() {
         require(sequence > 0 && occurredAt > 0)
         require((sender?.length ?: 0) <= 100 && (body?.length ?: 0) <= 2000)
+        require(kind == Kind.WEARABLE || wearable == null)
         when (kind) {
+            Kind.WEARABLE -> {
+                require(sender == null && body == null && latitude == null && longitude == null && accuracy == null)
+                requireNotNull(wearable).validate(occurredAt)
+            }
             Kind.LOCATION -> {
                 require(latitude != null && latitude.isFinite() && latitude in -90.0..90.0)
                 require(longitude != null && longitude.isFinite() && longitude in -180.0..180.0)
@@ -71,13 +83,13 @@ data class Peer(
 )
 
 @Serializable
-data class Pull(val version: Int = 1, val after: Long) {
-    fun validate() { require(version == 1 && after >= 0) }
+data class Pull(val version: Int = Wire.VERSION, val after: Long) {
+    fun validate() { require(version == Wire.VERSION && after >= 0) }
 }
 
 @Serializable
 data class Batch(
-    val version: Int = 1,
+    val version: Int = Wire.VERSION,
     val source: String,
     val through: Long,
     val latest: Long,
@@ -85,7 +97,7 @@ data class Batch(
     val events: List<Event>,
 ) {
     fun validate(expectedSource: String, after: Long) {
-        require(version == 1 && source == expectedSource)
+        require(version == Wire.VERSION && source == expectedSource)
         require(after >= 0 && through >= after && latest >= through)
         require(earliest >= 1 && earliest <= latest + 1)
         require(events.size <= Wire.PAGE_SIZE)
@@ -102,13 +114,15 @@ data class Batch(
 }
 
 @Serializable
-data class Ack(val version: Int = 1, val through: Long)
+data class Ack(val version: Int = Wire.VERSION, val through: Long)
 
 @Serializable
-data class Receipt(val version: Int = 1, val through: Long)
+data class Receipt(val version: Int = Wire.VERSION, val through: Long)
 
 object Wire {
-    val ALPN = "family.seniorlink/sync/1".toByteArray()
+    // A distinct ALPN prevents older apps from accepting an enum/payload they cannot decode.
+    const val VERSION = 2
+    val ALPN = "family.seniorlink/sync/2".toByteArray()
     const val PAGE_SIZE = 20
     const val MAX_REQUEST = 1024
     const val MAX_RESPONSE = 512 * 1024
@@ -176,6 +190,6 @@ suspend fun catchUpPage(source: String, inbox: Inbox, exchange: Exchange, now: L
     batch.validate(source, after)
     inbox.commit(batch, now)
     val receipt = exchange.acknowledge(batch.through)
-    require(receipt.version == 1 && receipt.through == batch.through)
+    require(receipt.version == Wire.VERSION && receipt.through == batch.through)
     return batch.through < batch.latest
 }

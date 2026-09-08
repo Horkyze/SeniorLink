@@ -6,15 +6,17 @@ explicitly approves every caregiver; caregivers catch up when they open the app.
 
 ## Get the APK without building
 
-Download **[SeniorLink-0.1.5-debug.apk](https://github.com/Horkyze/SeniorLink/releases/download/v0.1.5/SeniorLink-0.1.5-debug.apk)**
-from the **[v0.1.5 prerelease](https://github.com/Horkyze/SeniorLink/releases/tag/v0.1.5)**.
-Settings now shows the installed version and a **Check for updates** button for
-both roles, with clear results and a retry after a failed check.
+Download **[SeniorLink-0.1.6-debug.apk](https://github.com/Horkyze/SeniorLink/releases/download/v0.1.6/SeniorLink-0.1.6-debug.apk)**
+from the **[v0.1.6 prerelease](https://github.com/Horkyze/SeniorLink/releases/tag/v0.1.6)**.
+This version adds direct Bluetooth wearable collection without Samsung Health.
+See [wearable setup and compatibility](docs/wearables.md); update **all paired
+phones** because sync protocol 2 cannot communicate with older versions.
+Physical Galaxy Fit3 testing remains outstanding.
 The release assets include `SHA256SUMS` for verifying the download.
 
 For a synced checkout, the same APK is also carried as small archive parts because
 the full APK exceeds the thread's binary-file sync limit. Restore and checksum-verify
-it to `dist/SeniorLink-0.1.5-debug.apk` with:
+it to `dist/SeniorLink-0.1.6-debug.apk` with:
 
 ```sh
 python3 scripts/unpack-pilot.py
@@ -25,10 +27,10 @@ to the phones. The archive parts themselves are not installable Android packages
 
 This is a **debug-signed family pilot**, not a production or emergency-response app.
 Install the same APK on the sharing phone and each caregiver's phone. The published
-0.1.5 APK uses the same signing certificate as the published 0.1.0–0.1.4 APKs,
+0.1.6 APK uses the same signing certificate as the published 0.1.0–0.1.5 APKs,
 so it can update those installations without uninstalling or clearing pairing/history.
-Versions 0.1.3–0.1.4 check for this update when you open the app. For versions
-0.1.0–0.1.2, install 0.1.5 manually using the link above to enable update checks.
+Versions 0.1.3–0.1.5 check for this update when you open the app. For versions
+0.1.0–0.1.2, install 0.1.6 manually using the link above to enable update checks.
 
 ## Features
 
@@ -52,6 +54,14 @@ Versions 0.1.3–0.1.4 check for this update when you open the app. For versions
 - **SMS:** separately enabled, exact sender allowlist required, multipart messages
   assembled. Bodies are off by default; likely verification codes are withheld.
 - **Manual “I'm okay” check-in.**
+- **Direct Bluetooth wearables (0.1.6):** select a band under **Settings → Bluetooth
+  wearable**, enable sharing, save and start. Collects standard heart rate/contact,
+  beat intervals, energy, battery, thermometer, pulse oximeter and blood-pressure
+  measurements where exposed, plus device details. Samsung Health is not used.
+  **Wearable** shows current/cached values, individual timestamps, summaries and
+  the services found on the selected device. Fit3 hardware verification remains
+  outstanding; unsupported/proprietary data is not fabricated. See
+  [wearables](docs/wearables.md).
 - **Optional Telegram forwarding:** bot token plus chat/channel ID, test message,
   persistent retry queue, rate-limit handling. Only the sharing phone posts.
 - **Visible monitoring:** foreground notification with a Pause action. No hidden
@@ -141,7 +151,8 @@ after an ambiguous network failure can occasionally duplicate a Telegram post.
   reboot or force-stop, open the sharing app and tap Start again.
 - A foreground service reduces interruptions; it is not an always-online guarantee.
   It uses the `specialUse` type for user-enabled safety sharing and additionally
-  the `location` type when location is enabled, not a perpetual `dataSync` service.
+  the `location` type when location is enabled and `connectedDevice` when wearable
+  collection is enabled, not a perpetual `dataSync` service.
 - Unlock observation is not a complete audit log. Permission denial is respected.
 - Retention is seven days, capped at 10,000 events per source; pruning occurs
   during use/synchronization. Updates shows the latest 100 events; Location

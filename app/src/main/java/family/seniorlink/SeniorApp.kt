@@ -16,6 +16,7 @@ class SeniorApp : Application() {
     val monitorStatus = MutableStateFlow("Monitoring paused")
     val telegramStatus = MutableStateFlow("Telegram is optional and disabled by default")
     val peerStatus = MutableStateFlow<Map<String, String>>(emptyMap())
+    val wearableState = MutableStateFlow(family.seniorlink.wearable.WearableState())
     lateinit var store: Store
         private set
     lateinit var secrets: Secrets

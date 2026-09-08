@@ -102,7 +102,7 @@ object IrohSync {
                 val ack = stream.recv().use {
                     Wire.decode<Ack>(it.readToEnd(Wire.MAX_REQUEST.toUInt()), Wire.MAX_REQUEST)
                 }
-                require(ack.version == 1 && ack.through == batch.through)
+                require(ack.version == Wire.VERSION && ack.through == batch.through)
                 check(enabled() && store.approved(peer))
                 store.acknowledge(peer, ack.through, System.currentTimeMillis())
                 stream.send().use {
@@ -156,7 +156,7 @@ object IrohSync {
                                 delay(backoff)
                                 backoff = (backoff * 2).coerceAtMost(60_000)
                             } catch (_: Exception) {
-                                status(peer, "Not connected — check approval and the sharing phone")
+                                status(peer, "Not connected — check approval and update SeniorLink on both phones")
                                 delay(backoff)
                                 backoff = (backoff * 2).coerceAtMost(60_000)
                             }

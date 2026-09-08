@@ -53,14 +53,24 @@ class Store(context: Context, name: String = "seniorlink") : SQLiteOpenHelper(co
 
     private fun changed() { revision.value += 1 }
 
-    @Synchronized fun updateSettings(next: Settings, localId: String) {
+    @Synchronized fun updateSettings(requested: Settings, localId: String) {
+        // Give each selected device a random shareable ID, independent of its Bluetooth address.
+        val next = requested.copy(wearableId = when {
+            requested.wearableAddress.isEmpty() -> ""
+            requested.wearableAddress != settings.wearableAddress || settings.wearableId.isEmpty() -> java.util.UUID.randomUUID().toString()
+            else -> settings.wearableId
+        })
         require(next.role == settings.role || settings.role == Role.UNSET)
         require(next.smsSenders.length <= 2000 && next.telegramChat.length <= 100)
+        require(next.wearableName.length <= 80 && (next.wearableAddress.isEmpty() ||
+            Regex("[0-9A-F]{2}(:[0-9A-F]{2}){5}").matches(next.wearableAddress)))
+        require(!next.wearable || next.wearableAddress.isNotEmpty())
         val old = settings
         // Remove retained local content when its permission is withdrawn, including queued Telegram jobs.
         transaction { db ->
             localEvents(localId).forEach { event ->
                 val withdraw = !next.allows(event.kind) ||
+                    (event.kind == Kind.WEARABLE && old.wearableAddress != next.wearableAddress) ||
                     (event.kind == Kind.SMS && (old.smsBodies != next.smsBodies || old.smsSenders != next.smsSenders))
                 if (withdraw) db.delete("events", "source=? AND sequence=?", arrayOf(localId, event.sequence.toString()))
             }
@@ -211,6 +221,17 @@ class Store(context: Context, name: String = "seniorlink") : SQLiteOpenHelper(co
             arrayOf<Any>(retryAt, job.source, job.event.sequence),
         )
         changed()
+    }
+
+    /** Dedicated wearable history is not displaced by a busy mixed feed. */
+    @Synchronized fun wearables(source: String, now: Long = System.currentTimeMillis()): List<StoredEvent> {
+        writableDatabase.delete("events", "storedAt<?", arrayOf((now - RETENTION_MS).toString()))
+        return readableDatabase.rawQuery(
+            "SELECT json FROM events WHERE source=? AND kind=? ORDER BY occurredAt DESC,sequence DESC LIMIT 100",
+            arrayOf(source, Kind.WEARABLE.name),
+        ).use { c -> buildList {
+            while (c.moveToNext()) add(StoredEvent(source, Wire.json.decodeFromString<Event>(c.getString(0))))
+        } }
     }
 
     @Synchronized fun pendingTelegram(): Long = readableDatabase.rawQuery("SELECT COUNT(*) FROM telegram", null)

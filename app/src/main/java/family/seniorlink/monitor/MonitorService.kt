@@ -20,6 +20,9 @@ import family.seniorlink.SeniorApp
 import family.seniorlink.core.*
 import family.seniorlink.net.IrohSync
 import family.seniorlink.net.Telegram
+import family.seniorlink.wearable.AndroidBleLink
+import family.seniorlink.wearable.BleAccess
+import family.seniorlink.wearable.WearableMonitor
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -29,6 +32,7 @@ class MonitorService : Service() {
     private var registered = false
     private var locationManager: LocationManager? = null
     private var lastLocationRecorded = 0L
+    @Volatile private var wearableActive = false
     private val unlockReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action == Intent.ACTION_USER_PRESENT && app.store.settings.unlock) {
@@ -85,6 +89,7 @@ class MonitorService : Service() {
                 .addAction(0, "Pause sharing", pause).build()
             var types = if (Build.VERSION.SDK_INT >= 34) ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE else 0
             if (settings.location && Build.VERSION.SDK_INT >= 29) types = types or ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
+            if (settings.wearable && Build.VERSION.SDK_INT >= 29) types = types or ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
             ServiceCompat.startForeground(this, 1, notification, types)
             running.value = true
             app.monitorStatus.value = "Monitoring active; starting encrypted sharing…"
@@ -93,6 +98,19 @@ class MonitorService : Service() {
             ContextCompat.registerReceiver(this, unlockReceiver, IntentFilter(Intent.ACTION_USER_PRESENT), ContextCompat.RECEIVER_EXPORTED)
             registered = true
             if (settings.location) startLocation()
+            if (settings.wearable) {
+                wearableActive = true
+                scope.launch {
+                    WearableMonitor({ address -> AndroidBleLink(this@MonitorService, address) }).run(
+                        settings.wearableAddress, settings.wearableName.ifBlank { "Wearable" },
+                        enabled = { wearableActive && running.value && app.store.settings.role == Role.SHARER && app.store.settings.wearable &&
+                            app.store.settings.wearableAddress == settings.wearableAddress },
+                        onState = { if (wearableActive && running.value) app.wearableState.value = it },
+                        onSummary = { summary, at -> app.record(Event(0, Kind.WEARABLE, at, wearable = summary)) },
+                        deviceId = settings.wearableId,
+                    )
+                }
+            }
             scope.launch {
                 while (isActive) {
                     try {
@@ -134,12 +152,15 @@ class MonitorService : Service() {
     }
 
     override fun onDestroy() {
+        // A cancelled old service must never publish into a newly started collection session.
+        wearableActive = false
         running.value = false
         scope.cancel()
         if (registered) unregisterReceiver(unlockReceiver)
         locationManager?.removeUpdates(locationListener)
         stopForeground(STOP_FOREGROUND_REMOVE)
         app.monitorStatus.value = "Monitoring paused — open the app and tap Start to resume"
+        app.wearableState.value = app.wearableState.value.copy(connected = false, status = "Wearable collection is paused")
         super.onDestroy()
     }
 
@@ -155,6 +176,7 @@ class MonitorService : Service() {
                 add(Manifest.permission.ACCESS_FINE_LOCATION)
             }
             if (settings.sms && !granted(Manifest.permission.RECEIVE_SMS)) add(Manifest.permission.RECEIVE_SMS)
+            if (settings.wearable) addAll(BleAccess.missingConnectionPermissions(context))
         }
     }
 }
