@@ -8,12 +8,13 @@ import kotlinx.serialization.json.Json
 enum class Role { UNSET, SHARER, CAREGIVER }
 
 @Serializable
-enum class Kind { UNLOCK, LOCATION, SMS, CHECK_IN, WEARABLE }
+enum class Kind { UNLOCK, LOCATION, SMS, CHECK_IN, WEARABLE, PHONE_BATTERY }
 
 @Serializable
 data class Settings(
     val role: Role = Role.UNSET,
     val unlock: Boolean = false,
+    val phoneBattery: Boolean = false,
     val location: Boolean = false,
     val sms: Boolean = false,
     val smsBodies: Boolean = false,
@@ -32,6 +33,7 @@ data class Settings(
         Kind.SMS -> sms
         Kind.CHECK_IN -> true
         Kind.WEARABLE -> wearable
+        Kind.PHONE_BATTERY -> phoneBattery
     }
 }
 
@@ -47,12 +49,18 @@ data class Event(
     val longitude: Double? = null,
     val accuracy: Float? = null,
     val wearable: WearableSummary? = null,
+    val phoneBattery: PhoneBattery? = null,
 ) {
     fun validate() {
         require(sequence > 0 && occurredAt > 0)
         require((sender?.length ?: 0) <= 100 && (body?.length ?: 0) <= 2000)
         require(kind == Kind.WEARABLE || wearable == null)
+        require(kind == Kind.PHONE_BATTERY || phoneBattery == null)
         when (kind) {
+            Kind.PHONE_BATTERY -> {
+                require(sender == null && body == null && latitude == null && longitude == null && accuracy == null)
+                requireNotNull(phoneBattery).validate()
+            }
             Kind.WEARABLE -> {
                 require(sender == null && body == null && latitude == null && longitude == null && accuracy == null)
                 requireNotNull(wearable).validate(occurredAt)
@@ -72,6 +80,11 @@ data class Event(
             )
         }
     }
+}
+
+@Serializable
+data class PhoneBattery(val percent: Int, val charging: Boolean? = null) {
+    fun validate() { require(percent in 0..100) }
 }
 
 data class Peer(
@@ -121,8 +134,8 @@ data class Receipt(val version: Int = Wire.VERSION, val through: Long)
 
 object Wire {
     // A distinct ALPN prevents older apps from accepting an enum/payload they cannot decode.
-    const val VERSION = 2
-    val ALPN = "family.seniorlink/sync/2".toByteArray()
+    const val VERSION = 3
+    val ALPN = "family.seniorlink/sync/3".toByteArray()
     const val PAGE_SIZE = 20
     const val MAX_REQUEST = 1024
     const val MAX_RESPONSE = 512 * 1024

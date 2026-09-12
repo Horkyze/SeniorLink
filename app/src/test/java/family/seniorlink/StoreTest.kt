@@ -32,6 +32,31 @@ class StoreTest {
         addPeer(source, "Grandfather", caregiver)
     }
 
+    @Test fun `phone battery survives busy feed and withdrawal removes battery and queue only`() {
+        sharer().use { db ->
+            val event = Event(0, Kind.PHONE_BATTERY, now, phoneBattery = PhoneBattery(42, true))
+            try { db.append(source, event, now); fail("Battery is opt in") } catch (_: IllegalArgumentException) { }
+            db.updateSettings(db.settings.copy(phoneBattery = true, telegram = true), source)
+            val saved = db.append(source, event, now)
+            repeat(110) { db.append(source, Event(0, Kind.UNLOCK, now + it + 1), now) }
+            assertTrue(db.recent(now).none { it.event.kind == Kind.PHONE_BATTERY })
+            assertEquals(saved, db.phoneBattery(source, now)?.event)
+            assertNull(db.phoneBattery(brother, now))
+            inbox().use { receiver ->
+                receiver.commit(db.batch(source, 0, now), now)
+                assertEquals(saved, receiver.phoneBattery(source, now)?.event)
+                assertEquals(20L, receiver.cursor(source))
+                assertNull(receiver.phoneBattery(source, now + Store.RETENTION_MS + 1))
+                receiver.removePeer(source)
+                assertNull(receiver.phoneBattery(source, now))
+            }
+            db.updateSettings(db.settings.copy(phoneBattery = false), source)
+            assertNull(db.phoneBattery(source, now))
+            assertEquals(110L, db.pendingTelegram())
+            assertEquals(111L, db.latest(source))
+        }
+    }
+
     @Test fun `independent delivery receipts never block another caregiver`() {
         sharer().use { db ->
             repeat(25) { db.append(source, Event(0, Kind.UNLOCK, now + it), now) }

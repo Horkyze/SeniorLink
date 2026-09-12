@@ -1,6 +1,6 @@
 # Direct Bluetooth wearables
 
-SeniorLink 0.1.6 can connect directly to a selected Bluetooth LE peripheral on the
+SeniorLink can connect directly to a selected Bluetooth LE peripheral on the
 sharing phone. Samsung Health and Health Connect are not part of this data path:
 
 ```text
@@ -9,9 +9,9 @@ Wearable → Bluetooth LE → sharing phone's local summaries → encrypted iroh
 
 ## Install and start
 
-1. Install the 0.1.6 APK on the sharing phone **and every caregiver phone**. Sync
-   protocol 2 prevents older versions from attempting to decode the new health
-   payload. Updating in place preserves identity, pairing, settings and history.
+1. Install the 0.1.7 APK on the sharing phone **and every caregiver phone**. Sync
+   protocol 3 cannot communicate with 0.1.6 or older. Updating in place with the
+   published APK preserves identity, pairing, settings and history.
 2. On the sharing phone, pause sharing and open **Settings → Bluetooth wearable**.
 3. Tap **Choose wearable**. Allow Nearby devices on Android 12 or newer. Android
    8–11 require fine Location permission and the system Location setting to scan;
@@ -63,6 +63,32 @@ energy-reset, history-retrieval, firmware or proprietary control commands. It do
 not attempt to replace initial Samsung band setup, firmware updates, notifications,
 fall detection or the other companion-app functions.
 
+## Heart-rate graph and device batteries
+
+Updates and Wearable show a pulse trend with **1 hour / 24 hours** controls. Each
+point is the last heart-rate reading from a saved two-minute summary, positioned
+by its Bluetooth receipt time. Lines break across gaps longer than five minutes
+or reported loss of skin contact. The chart does not reconstruct an ECG or recover
+readings missed while disconnected. A single saved reading appears as one point.
+The latest value has its own timestamp and is marked when no recent reading exists.
+
+The phone and smartwatch battery cards show separate percentages, recorded times,
+and a low-battery label at 20% or below. A missing reading is **Unknown**, not zero.
+A newer battery update does not refresh the pulse timestamp. Devices that do not
+expose Bluetooth battery data, potentially including Fit3, cannot supply a watch
+battery percentage through this integration.
+
+Phone battery has its own **Share phone battery** setting, off by default. While
+sharing is active it samples Android's reported level and available charging state
+at startup and about every five minutes. Pause stops sampling. Disabling the
+setting removes its retained local events and queued Telegram output; delivered
+caregiver copies cannot be recalled. Caregiver mode never samples its own battery.
+The sampler uses [Android's battery status API](https://developer.android.com/training/monitoring-device-state/battery-monitoring).
+
+Install 0.1.7 on all paired phones to use protocol 3. Existing settings, identity,
+pairing and history remain readable; no reset is needed. Version 0.1.6 and older
+cannot synchronize with 0.1.7.
+
 ## Fit3 expectations and verification
 
 The community [Fit3Free Bluetooth reference](https://github.com/Astroisback/Fit3Free)
@@ -112,7 +138,7 @@ five minutes in addition to any notifications.
 
 This produces about 5,040 streaming summaries over seven days, leaving room under
 the existing 10,000-event cap for other updates. The Wearable tab queries its own
-latest 100 summaries so a busy mixed update feed cannot displace them; it expands
+latest 1,000 summaries so a busy mixed update feed cannot displace them; it expands
 the latest 20 for inspection. The normal seven-day retention and per-caregiver
 durable synchronization rules still apply.
 

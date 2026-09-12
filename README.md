@@ -6,8 +6,8 @@ Caregivers open the same app on their own phones to see check-ins, recent phone
 activity, locations, selected SMS and readings from compatible wearables. Updates
 travel over an encrypted phone-to-phone connection; you don't need to run a server.
 
-**[Download the Android app](https://github.com/Horkyze/SeniorLink/releases/download/v0.1.6/SeniorLink-0.1.6-debug.apk)**
-· [Release notes](https://github.com/Horkyze/SeniorLink/releases/tag/v0.1.6)
+**[Download the Android app](https://github.com/Horkyze/SeniorLink/releases/download/v0.1.7/SeniorLink-0.1.7-debug.apk)**
+· [Release notes](https://github.com/Horkyze/SeniorLink/releases/tag/v0.1.7)
 · [Wearable setup](docs/wearables.md)
 · [Build from source](#building-and-contributing)
 
@@ -18,6 +18,28 @@ members can catch up independently on their own phones.
 
 This is an early **family pilot**, not a medical device or emergency-response
 service. It does not send emergency alerts or guarantee continuous monitoring.
+
+## What's new in 0.1.7
+
+The **Calm** design uses soft green surfaces, a pink
+**heart-rate graph** with 1-hour and 24-hour views, and separate **phone battery**
+and **smartwatch battery** cards. The bottom navigation opens Updates, Location,
+Wearable, Phones and Settings. Larger text stacks the battery cards and wraps
+navigation into two rows.
+
+The graph uses the last recorded pulse from each two-minute summary, not an ECG.
+Missing readings stay missing; percentages and pulse readings keep their own times.
+
+To share phone battery, pause sharing, enable **Settings → Share phone battery**,
+save, and start sharing again. It is off by default and records the percentage and
+available charging state about every five minutes. Smartwatch battery appears when
+the selected wearable exposes standard Bluetooth battery data; otherwise it shows
+**Unknown**. One wearable is selected per sharing phone; caregivers can switch
+between family phones. Physical Galaxy Fit3 battery support is still unverified.
+
+Install 0.1.7 on **all paired phones**: it uses sync protocol 3 and cannot
+sync with 0.1.6 or older. The published APK uses the same signing key as earlier
+releases; update in place to preserve identity, pairing and history.
 
 ## Get started
 
@@ -45,9 +67,9 @@ A notification stays visible while sharing. Use **Pause sharing** in the app or
 notification to stop collecting and sharing. Pause before changing settings.
 Removing a caregiver stops future access, but cannot erase updates already received.
 
-**Updating an existing installation?** Install 0.1.6 on **all paired phones**;
+**Updating an existing installation?** Install 0.1.7 on **all paired phones**;
 its synchronization protocol cannot communicate with older versions. The published
-APK uses the same signing key as versions 0.1.0–0.1.5, so install it as an update
+APK uses the same signing key as versions 0.1.0–0.1.6, so install it as an update
 without uninstalling to keep pairing and history. Versions 0.1.3 onward check for
 updates when opened; 0.1.5 onward also offers **Settings → App updates → Check for updates**.
 The release includes `SHA256SUMS` if you want to verify the download.
@@ -60,6 +82,7 @@ updates; it does not monitor the caregiver's own phone or wearable.
 | Update | What caregivers see |
 | --- | --- |
 | **“I'm okay” check-in** | A timestamped message sent by your family member tapping a button. |
+| **Phone battery** | Battery percentage, available charging state and recording time, approximately every five minutes while enabled and sharing. |
 | **Phone activity** | When Android reports that the phone was unlocked; this is a best-effort signal. |
 | **Location** | The latest saved location and previous fixes on a map, with times and accuracy. Updates are approximately every 15 minutes when available. |
 | **Selected SMS** | Messages from an exact list of allowed senders. Message bodies are off by default. |
@@ -142,7 +165,7 @@ rendered on the phone. Maps need no API key or Google Play Services. See the
 
 | Problem | What to try |
 | --- | --- |
-| No updates arrive | Check that sharing is started, both phones are online, the caregiver app is open and all phones run 0.1.6. Check permissions and battery restrictions on the sharing phone. |
+| No updates arrive | Check that sharing is started, both phones are online, the caregiver app is open and all phones run 0.1.7. Check permissions and battery restrictions on the sharing phone. |
 | Camera is unavailable for pairing | Use **Copy invitation / Share invitation** on the sharing phone and **Use a shared invitation instead** on the caregiver. Compare the verification code through a trusted conversation. |
 | Pairing expired or the codes differ | Start a new invitation on the sharing phone and keep both apps open. Invitations expire after five minutes. |
 | Wearable is connected but has no readings | Enable measurement on the band, check skin contact and inspect **Wearable → Available Bluetooth data**. Follow the [device checklist](docs/wearables.md#fit3-expectations-and-verification). |
@@ -198,7 +221,7 @@ also be restored without an Android toolchain using Python 3:
 python3 scripts/unpack-pilot.py
 ```
 
-This reconstructs and checksum-verifies `dist/SeniorLink-0.1.6-debug.apk`.
+This reconstructs and checksum-verifies `dist/SeniorLink-0.1.7-debug.apk`.
 The archive parts are not themselves installable. Full APKs, signing material and
 build output remain ignored. CI builds an APK and uploads test reports; it does
 not publish a release automatically.

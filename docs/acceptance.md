@@ -54,6 +54,23 @@ The emulator tests do not establish manufacturer-specific battery behavior.
 - Disable location services while monitoring, then re-enable/restart and check
   provider behavior. Approximate location must be accepted and labeled with accuracy.
 
+## Heart-rate graph and batteries
+
+- Install 0.1.7 on all paired phones. Verify in-place updates preserve pairing,
+  settings, history and independent caregiver catch-up.
+- Enable Share phone battery only on the sharing phone, save and start. Compare
+  its percentage and charging label with Android, then plug/unplug the charger
+  and allow the next five-minute sample to arrive on both caregivers.
+- Pause and confirm collection stops. Disable phone battery and verify local
+  battery history and queued Telegram output are removed. Confirm caregiver mode
+  does not collect its own battery.
+- Compare pulse and smartwatch battery with the physical wearable. If its battery
+  service is absent, confirm the card stays Unknown; record actual exposed services.
+- Switch family phones and replace the selected watch. Values and chart points
+  must stay separate. Remove a paired source and confirm its cards and graph clear.
+- Check 1-hour/24-hour graphs, a single sample, disconnected gaps, contact loss,
+  stale readings and empty history. Check normal and large fonts on family phones.
+
 ## SMS and Telegram
 
 - Test a permitted sender, a non-permitted sender, and a multipart SMS.

@@ -227,12 +227,19 @@ class Store(context: Context, name: String = "seniorlink") : SQLiteOpenHelper(co
     @Synchronized fun wearables(source: String, now: Long = System.currentTimeMillis()): List<StoredEvent> {
         writableDatabase.delete("events", "storedAt<?", arrayOf((now - RETENTION_MS).toString()))
         return readableDatabase.rawQuery(
-            "SELECT json FROM events WHERE source=? AND kind=? ORDER BY occurredAt DESC,sequence DESC LIMIT 100",
+            "SELECT json FROM events WHERE source=? AND kind=? ORDER BY occurredAt DESC,sequence DESC LIMIT 1000",
             arrayOf(source, Kind.WEARABLE.name),
         ).use { c -> buildList {
             while (c.moveToNext()) add(StoredEvent(source, Wire.json.decodeFromString<Event>(c.getString(0))))
         } }
     }
+
+    /** Battery remains available even when other events fill the Updates feed. */
+    @Synchronized fun phoneBattery(source: String, now: Long = System.currentTimeMillis()): StoredEvent? =
+        readableDatabase.rawQuery(
+            "SELECT json FROM events WHERE source=? AND kind=? AND storedAt>=? ORDER BY occurredAt DESC,sequence DESC LIMIT 1",
+            arrayOf(source, Kind.PHONE_BATTERY.name, (now - RETENTION_MS).toString()),
+        ).use { c -> if (c.moveToFirst()) StoredEvent(source, Wire.json.decodeFromString<Event>(c.getString(0))) else null }
 
     @Synchronized fun pendingTelegram(): Long = readableDatabase.rawQuery("SELECT COUNT(*) FROM telegram", null)
         .use { it.moveToFirst(); it.getLong(0) }

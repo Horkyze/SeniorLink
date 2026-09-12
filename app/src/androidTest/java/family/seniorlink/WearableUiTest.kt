@@ -6,11 +6,10 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import family.seniorlink.ui.CalmTheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.unit.dp
@@ -44,7 +43,7 @@ class WearableUiTest {
         val visible = mutableStateOf(state)
         show { WearableContent(visible.value, WearableState(), {}) }
         compose.onNodeWithText("Heart rate: 72 bpm").assertExists()
-        compose.onNodeWithText("No recent reading", substring = true).assertExists()
+        compose.onAllNodesWithText("No recent reading", substring = true).assertAny(hasText("No recent reading", substring = true))
         compose.onNodeWithText("Battery: 80 %").assertExists()
         screenshot("wearable-caregiver")
         compose.onNodeWithText("Grandma").performClick()
@@ -106,7 +105,7 @@ class WearableUiTest {
             // Only synthetic data is rendered by this test.
             compose.activity.window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
             compose.activity.setContent {
-                MaterialTheme(colorScheme = lightColorScheme(primary = Color(0xFF14665B))) {
+                CalmTheme {
                     Column(Modifier.fillMaxSize().systemBarsPadding().verticalScroll(rememberScrollState()).padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)) { content() }
                 }

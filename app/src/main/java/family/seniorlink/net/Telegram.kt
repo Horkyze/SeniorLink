@@ -88,6 +88,11 @@ object Telegram {
     fun describe(event: Event): String = buildString {
         append("SeniorLink • ${Instant.ofEpochMilli(event.occurredAt)}\n")
         append(when (event.kind) {
+            Kind.PHONE_BATTERY -> requireNotNull(event.phoneBattery).let {
+                "Phone battery: ${it.percent}%" + when (it.charging) {
+                    true -> " • Charging"; false -> " • Not charging"; null -> ""
+                }
+            }
             Kind.UNLOCK -> "Phone unlocked"
             Kind.CHECK_IN -> "I'm okay — manual check-in"
             Kind.LOCATION -> "Location: ${event.latitude}, ${event.longitude} (±${event.accuracy?.toInt()} m)"

@@ -19,7 +19,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -36,6 +35,10 @@ import family.seniorlink.monitor.MonitorService
 import family.seniorlink.updates.UpdateDialog
 import family.seniorlink.updates.UpdateViewModel
 import family.seniorlink.updates.UpdateSettings
+import family.seniorlink.ui.CalmTheme
+import family.seniorlink.ui.CalmAppBar
+import family.seniorlink.ui.CalmNavigation
+import family.seniorlink.dashboard.HealthOverview
 import family.seniorlink.wearable.WearableContent
 import family.seniorlink.wearable.WearableSettings
 import family.seniorlink.wearable.WearableSummaryContent
@@ -52,12 +55,7 @@ class MainActivity : ComponentActivity() {
         // SMS and location should not leak through screenshots or the recent-apps thumbnail.
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
         setContent {
-            MaterialTheme(colorScheme = lightColorScheme(
-                primary = Color(0xFF14665B),
-                secondary = Color(0xFF426653),
-                background = Color(0xFFF7F9F6),
-                surface = Color(0xFFF7F9F6),
-            )) { SeniorScreen(model, updates) }
+            CalmTheme { SeniorScreen(model, updates) }
         }
     }
     override fun onStart() { super.onStart(); model.foreground(true) }
@@ -78,6 +76,7 @@ internal fun SeniorScreen(model: MainViewModel, updates: UpdateViewModel) {
     val peerStatus by model.app.peerStatus.collectAsStateWithLifecycle()
     val wearableState by model.app.wearableState.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableIntStateOf(0) }
+    var updatesSource by rememberSaveable { mutableStateOf<String?>(null) }
     var locationSource by rememberSaveable { mutableStateOf<String?>(null) }
     var locationSequence by rememberSaveable { mutableStateOf<Long?>(null) }
     val scroll = remember(tab) { ScrollState(0) }
@@ -86,19 +85,14 @@ internal fun SeniorScreen(model: MainViewModel, updates: UpdateViewModel) {
     val permissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         model.message("Permissions updated. Tap Start sharing when ready.")
     }
-    Scaffold { insets ->
+    val family = state.peers.firstOrNull { it.id == updatesSource } ?: state.peers.firstOrNull()
+    Scaffold(
+        topBar = { CalmAppBar(if (state.settings.role == Role.CAREGIVER) family?.name?.take(1)?.uppercase() else null) },
+        bottomBar = {
+            if (state.ready && state.settings.role != Role.UNSET) CalmNavigation(tab) { tab = it }
+        },
+    ) { insets ->
         Column(Modifier.fillMaxSize().padding(insets).padding(horizontal = 20.dp)) {
-            Spacer(Modifier.height(16.dp))
-            Text("SeniorLink", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-            Text(
-                when (state.settings.role) {
-                    Role.SHARER -> "Your information. Your choice."
-                    Role.CAREGIVER -> "Family updates, when you check in."
-                    Role.UNSET -> "A little more peace of mind."
-                },
-                style = MaterialTheme.typography.bodyLarge,
-            )
-            Spacer(Modifier.height(16.dp))
             if (!state.ready) {
                 Text(state.fatalError ?: "Opening secure local storage…")
             }
@@ -121,26 +115,14 @@ internal fun SeniorScreen(model: MainViewModel, updates: UpdateViewModel) {
                 }
             }
             if (state.ready && state.settings.role != Role.UNSET) {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("Updates", "Location", "Phones", "Settings", "Wearable").forEachIndexed { index, title ->
-                        FilterChip(selected = tab == index, onClick = { tab = index }, label = { Text(title) })
-                    }
-                }
                 Column(
                     Modifier.weight(1f).verticalScroll(scroll).padding(vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     when (tab) {
                         0 -> {
-                            Panel("Location") {
-                                val latest = state.locations.maxByOrNull { it.event.occurredAt }
-                                Text(if (latest == null) "No location received yet" else
-                                    "Latest known location • ${formatTime(latest.event.occurredAt)}")
-                                if (latest != null) Text(state.peers.firstOrNull { it.id == latest.source }?.name ?: "This phone")
-                                Button(onClick = {
-                                    locationSource = latest?.source; locationSequence = null; tab = 1
-                                }, modifier = Modifier.fillMaxWidth()) { Text("View location map") }
-                            }
+                            if (state.settings.role == Role.CAREGIVER) HealthOverview(state, wearableState, onWearable = { tab = 4 },
+                                selectedSource = updatesSource, onSelectSource = { updatesSource = it })
                             if (state.settings.role == Role.SHARER) {
                                 Panel(if (running) "Sharing is active" else "Sharing is paused") {
                                     Text(monitorStatus)
@@ -169,6 +151,16 @@ internal fun SeniorScreen(model: MainViewModel, updates: UpdateViewModel) {
                                     Text("Always check timestamps. Missing contact alone is not an emergency signal.")
                                 }
                             }
+                            if (state.settings.role == Role.SHARER) HealthOverview(state, wearableState, onWearable = { tab = 4 })
+                            Panel("Location") {
+                                val latest = state.locations.maxByOrNull { it.event.occurredAt }
+                                Text(if (latest == null) "No location received yet" else
+                                    "Latest known location • ${formatTime(latest.event.occurredAt)}")
+                                if (latest != null) Text(state.peers.firstOrNull { it.id == latest.source }?.name ?: "This phone")
+                                Button(onClick = {
+                                    locationSource = latest?.source; locationSequence = null; tab = 1
+                                }, modifier = Modifier.fillMaxWidth()) { Text("View location map") }
+                            }
                             Text("Recent updates", style = MaterialTheme.typography.titleLarge)
                             if (state.events.isEmpty()) Text("No updates yet. On the sharing phone, tap Start sharing and then I'm okay.")
                             state.events.forEach { stored -> EventCard(stored, state.peers) {
@@ -184,7 +176,7 @@ internal fun SeniorScreen(model: MainViewModel, updates: UpdateViewModel) {
                             if (state.settings.role == Role.SHARER) {
                                 SharingSettings(state, running, telegramStatus, model)
                             } else Panel("Caregiver mode") {
-                                Text("This phone does not collect its own location, unlock activity or SMS.")
+                                Text("This phone only receives family updates. It does not collect its own battery, wearable, location, unlock activity or SMS.")
                                 Text("Updates sync while this app is open. A connection invitation can stay active for up to 5 minutes.")
                             }
                             Panel("Privacy and reliability") {
@@ -198,7 +190,8 @@ internal fun SeniorScreen(model: MainViewModel, updates: UpdateViewModel) {
                                 }) { Text("Android app settings") }
                             }
                         }
-                        4 -> WearableContent(state, wearableState) { tab = 3 }
+                        4 -> WearableContent(state, wearableState, onSettings = { tab = 3 },
+                            selectedSource = updatesSource, onSelectSource = { updatesSource = it })
                     }
                 }
             }
@@ -243,6 +236,8 @@ private fun SharingSettings(state: ScreenState, running: Boolean, telegramStatus
     var token by remember { mutableStateOf("") }
     Panel("Choose what to share") {
         if (running) Text("Pause sharing before editing settings.")
+        Toggle("Share phone battery", draft.phoneBattery, { draft = draft.copy(phoneBattery = it) }, !running)
+        Text("Share this phone’s battery percentage and charging state about every 5 minutes while sharing is active.")
         Toggle("Observe phone unlocks", draft.unlock, { draft = draft.copy(unlock = it) }, !running)
         Text("Best-effort Android unlock broadcasts, not a complete audit log.")
         Toggle("Share location", draft.location, { draft = draft.copy(location = it) }, !running)
@@ -282,6 +277,7 @@ private fun SharingSettings(state: ScreenState, running: Boolean, telegramStatus
 private fun EventCard(stored: StoredEvent, peers: List<Peer>, onLocation: () -> Unit) {
     val event = stored.event
     Panel(when (event.kind) {
+        Kind.PHONE_BATTERY -> "Phone battery"
         Kind.UNLOCK -> "Phone unlocked"
         Kind.LOCATION -> "Location update"
         Kind.SMS -> "Incoming SMS"
@@ -290,6 +286,11 @@ private fun EventCard(stored: StoredEvent, peers: List<Peer>, onLocation: () -> 
     }) {
         Text("${peers.firstOrNull { it.id == stored.source }?.name ?: "This phone"} • ${formatTime(event.occurredAt)}")
         when (event.kind) {
+            Kind.PHONE_BATTERY -> event.phoneBattery?.let {
+                Text("${it.percent}% remaining" + when (it.charging) {
+                    true -> " • Charging"; false -> " • Not charging"; null -> ""
+                })
+            }
             Kind.LOCATION -> {
                 Text("${event.latitude}, ${event.longitude} • accuracy ±${event.accuracy?.toInt()} m")
                 TextButton(onClick = onLocation) { Text("Show on location map") }
@@ -310,7 +311,7 @@ private fun EventCard(stored: StoredEvent, peers: List<Peer>, onLocation: () -> 
 
 @Composable
 internal fun Panel(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Card(Modifier.fillMaxWidth()) {
+    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
             content()

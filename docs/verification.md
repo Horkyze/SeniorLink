@@ -1,5 +1,113 @@
 # Verification
 
+## Release packaging — 0.1.7 (12 September 2026)
+
+- Rechecked the core/Android JVM tests, lint and debug build using the commands
+  below; all pass. The final APK is the same artifact used for the final Calm
+  screen checks. Its SHA-256 is
+  `9bec31235857e61428c48f9d12a8ae558f9bab3277b4cc5332d249cd0b1a93af`.
+- Downloaded the published 0.1.6 APK, verified its release digest and signature,
+  and compared certificates with 0.1.7. Both signatures verify and use certificate
+  SHA-256 `7e4f9088dfb6e1a7175ed42dc7a9d1f32717a21d28165cead7b6adfa04cbc302`.
+  All bundled native libraries are byte-identical to the verified 0.1.6 APK.
+- Packaged six archive parts with `scripts/package-pilot.py`, reconstructed them
+  with `scripts/unpack-pilot.py` in an isolated temporary directory, and verified
+  byte equality with the tested APK and `dist/SHA256SUMS`. Signing material and
+  full APKs remain ignored.
+
+```sh
+. ./scripts/env.sh
+./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+python3 scripts/verify-apk.py
+python3 scripts/package-pilot.py
+```
+
+## Selected Calm design — 0.1.7 source build (12 September 2026)
+
+- Implemented proposal 1 with the green app header, pink heart-rate chart, separate
+  phone/watch battery cards and five bottom navigation destinations. Low battery,
+  missing readings and recording times remain explicit. The family selection is
+  shared between Updates and Wearable.
+- All 40 core and 48 Android JVM tests pass. Debug and instrumentation APKs build;
+  lint reports zero errors and 14 warnings. Native ABI and 16 KB ELF/ZIP alignment
+  checks pass for all three supported ABIs.
+- All 13 selected Android 17 / API 37.1 ARM64 emulator tests pass: four dashboard
+  checks, five wearable UI checks, three update/Settings checks and the existing
+  Start/check-in/background/Pause workflow. Navigation coverage reaches every tab,
+  switches family members, retains selection across tabs and removes withdrawn
+  peers' displayed readings.
+- After the final shared family-selection change, all nine dashboard/wearable
+  tests pass again. All four dashboard tests also pass at 2× system font scale,
+  including every navigation destination and Settings access. Large-text captures
+  were visually inspected: battery cards stack, navigation wraps into two rows,
+  and content remains scrollable. The emulator's font scale was restored to 1.0.
+- Normal-size captures use synthetic visible state and were visually inspected.
+  The heart-rate chart and both battery cards fit above the navigation bar on the
+  test emulator. Tests leave stored family data intact, and production screenshot
+  protection remains enabled.
+
+The design changes are included in the 0.1.7 pilot release.
+
+Additional Calm UI commands performed after installing both APKs:
+
+```sh
+adb shell am instrument -w -r -e class family.seniorlink.HealthOverviewUiTest,family.seniorlink.WearableUiTest,family.seniorlink.UpdateSettingsUiTest,family.seniorlink.MonitoringUiTest family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+# Final family-selection check:
+adb shell am instrument -w -r -e class family.seniorlink.HealthOverviewUiTest,family.seniorlink.WearableUiTest family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+# Large-text check:
+adb shell settings put system font_scale 2.0
+trap 'adb shell settings put system font_scale 1.0 >/dev/null' EXIT
+adb shell am instrument -w -r -e class family.seniorlink.HealthOverviewUiTest family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+## Heart-rate graph and device batteries — 0.1.7 source build (12 September 2026)
+
+- All 40 core and 48 Android JVM tests pass. Coverage includes phone battery
+  validation and opt-in defaults, legacy settings/event decoding, durable receipt,
+  independent source lookup despite a busy feed, expiry and consent/peer withdrawal.
+  The sampler tests cover missing/invalid Android values, percentage conversion,
+  cadence, Pause, withdrawal during a read and cancellation before publication.
+- Graph tests cover receipt-time ordering, disconnected gaps, contact-loss summary
+  intervals, replacement watches, separate family sources and caregiver isolation
+  from local live values. Charts show saved pulse values, not an ECG.
+- All 12 selected tests pass on the Android 17 / API 37.1 ARM64 emulator: three new
+  dashboard checks, five wearable UI checks, the opt-in phone battery service,
+  Start/check-in/background/Pause, and two native transport/Keystore checks. The
+  native test delivers a synthetic phone battery event and wearable summary to two
+  independent caregivers and rejects unapproved/revoked peers.
+- All eight dashboard/wearable UI tests also pass at 2× system font scale.
+  Synthetic captures at normal and large text sizes were visually inspected;
+  battery cards stack at large sizes. Font scale was restored to 1.0 afterwards.
+  Production screenshot protection remains enabled.
+- Debug and instrumentation APKs build, lint has zero errors (14 warnings), and
+  ABI plus 16 KB ELF/ZIP alignment checks pass for all three supported ABIs. The
+  final APK was installed in place on the test emulator.
+
+This is version code 8. Install it on **all paired
+phones**: protocol 3 cannot synchronize with the published 0.1.6/protocol-2 pilot.
+Existing settings, identity, pairing and event history remain readable. Phone
+battery sharing stays off until explicitly enabled. Physical smartwatch battery
+support, including Galaxy Fit3, and real-phone background/battery behavior remain
+unverified; follow [the device checklist](acceptance.md#heart-rate-graph-and-batteries).
+
+Commands performed:
+
+```sh
+. ./scripts/env.sh
+./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest
+./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=family.seniorlink.HealthOverviewUiTest,family.seniorlink.WearableUiTest,family.seniorlink.PhoneBatteryServiceTest,family.seniorlink.MonitoringUiTest,family.seniorlink.IrohDeviceTest
+# After the final build, install both APKs and repeat the selected tests:
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+adb shell am instrument -w -r -e class family.seniorlink.HealthOverviewUiTest,family.seniorlink.WearableUiTest,family.seniorlink.PhoneBatteryServiceTest,family.seniorlink.MonitoringUiTest,family.seniorlink.IrohDeviceTest family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+# Large-text UI check; restore the emulator's original setting on exit:
+adb shell settings put system font_scale 2.0
+trap 'adb shell settings put system font_scale 1.0 >/dev/null' EXIT
+adb shell am instrument -w -r -e class family.seniorlink.HealthOverviewUiTest,family.seniorlink.WearableUiTest family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+python3 scripts/verify-apk.py
+git diff --check
+```
+
 ## Direct Bluetooth wearable collection — 0.1.6
 
 - 39 core and 37 Android unit tests pass. New coverage includes Fit3-shaped HR

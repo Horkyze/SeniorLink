@@ -1,0 +1,342 @@
+<div id="sl-proposals" aria-label="Five SeniorLink design proposals">
+  <div class="nav nav-pills" role="tablist" aria-label="Design proposal">
+    <button class="nav-link active" type="button" id="sl-tab-1" role="tab" aria-controls="sl-design-1" aria-selected="true">1 · Calm</button>
+    <button class="nav-link" type="button" id="sl-tab-2" role="tab" aria-controls="sl-design-2" aria-selected="false">2 · Vital</button>
+    <button class="nav-link" type="button" id="sl-tab-3" role="tab" aria-controls="sl-design-3" aria-selected="false">3 · Focus</button>
+    <button class="nav-link" type="button" id="sl-tab-4" role="tab" aria-controls="sl-design-4" aria-selected="false">4 · Journal</button>
+    <button class="nav-link" type="button" id="sl-tab-5" role="tab" aria-controls="sl-design-5" aria-selected="false">5 · Night</button>
+  </div>
+  <div class="sl-context"><span id="sl-direction" aria-live="polite">Soft colors and familiar cards</span><span>Sample data · Caregiver view</span></div>
+
+  <section id="sl-design-1" role="tabpanel" aria-labelledby="sl-tab-1">
+    <div class="sl-phone sl-calm" aria-label="Calm design preview">
+      <div class="sl-system"><span>14:10</span><span><i data-lucide="signal" aria-hidden="true"></i><i data-lucide="wifi" aria-hidden="true"></i></span></div>
+      <header class="sl-header"><div class="sl-brand"><i data-lucide="heart-handshake" aria-hidden="true"></i>SeniorLink</div><span class="sl-avatar">G</span></header>
+      <div class="sl-body">
+        <div class="sl-greeting"><div class="sl-overline">FAMILY UPDATES</div><h2>How is Grandad?</h2><span class="sl-muted">Last connected at 14:09</span></div>
+        <div class="sl-heart-panel">
+          <div class="sl-label-row"><span><i data-lucide="heart" aria-hidden="true"></i>Heart rate</span><span class="sl-tag">Galaxy Fit3</span></div>
+          <div class="sl-reading">72 <span>bpm</span></div>
+          <div class="sl-muted">Recorded at 14:08</div>
+          <div class="sl-chart" data-chart="calm" aria-label="Sample heart-rate history"></div>
+          <div class="sl-period" aria-label="Heart-rate range"><button type="button" data-hours="1" aria-pressed="true">1 hour</button><button type="button" data-hours="24" aria-pressed="false">24 hours</button></div>
+        </div>
+        <div class="sl-section-label">Device batteries</div>
+        <div class="sl-battery-pair">
+          <div class="sl-battery"><i data-lucide="smartphone" aria-hidden="true"></i><span>Phone</span><strong>64<span>%</span></strong><div class="sl-meter"><span style="width:64%"></span></div><small>Charging · 14:09</small></div>
+          <div class="sl-battery sl-low"><i data-lucide="watch" aria-hidden="true"></i><span>Smartwatch</span><strong>18<span>%</span></strong><div class="sl-meter"><span style="width:18%"></span></div><small>Low battery · 14:06</small></div>
+        </div>
+        <div class="sl-footnote">Saved readings · Heart-rate trend, not an ECG</div>
+      </div>
+      <div class="sl-bottom-nav" aria-label="Navigation preview"><span class="sl-nav-active"><i data-lucide="house" aria-hidden="true"></i>Updates</span><span><i data-lucide="map-pin" aria-hidden="true"></i>Location</span><span><i data-lucide="watch" aria-hidden="true"></i>Wearable</span><span><i data-lucide="users" aria-hidden="true"></i>Phones</span><span><i data-lucide="settings" aria-hidden="true"></i>Settings</span></div>
+      <div class="sl-home-indicator"></div>
+    </div>
+  </section>
+
+  <section id="sl-design-2" role="tabpanel" aria-labelledby="sl-tab-2" hidden>
+    <div class="sl-phone sl-vital" aria-label="Vital design preview">
+      <div class="sl-system"><span>14:10</span><span><i data-lucide="signal" aria-hidden="true"></i><i data-lucide="wifi" aria-hidden="true"></i></span></div>
+      <header class="sl-header"><div class="sl-brand">SeniorLink<span class="sl-brand-dot"></span></div><span class="sl-small-label">CAREGIVER</span></header>
+      <div class="sl-body">
+        <div class="sl-vital-title"><div><h2>Grandad</h2><span class="sl-muted">Last connected 14:09</span></div><span class="sl-avatar">G</span></div>
+        <div class="sl-vital-hero"><div><span class="sl-overline">HEART RATE</span><div class="sl-reading">72<span>bpm</span></div><span>Recorded 14:08</span></div><div class="sl-vital-symbol"><i data-lucide="heart" aria-hidden="true"></i><span>Galaxy Fit3</span></div></div>
+        <div class="sl-vital-graph"><div class="sl-label-row"><strong>Pulse history</strong><div class="sl-period" aria-label="Heart-rate range"><button type="button" data-hours="1" aria-pressed="true">1h</button><button type="button" data-hours="24" aria-pressed="false">24h</button></div></div><div class="sl-chart" data-chart="vital" aria-label="Sample heart-rate history"></div></div>
+        <div class="sl-device-heading">DEVICES <span>BATTERY LEFT</span></div>
+        <div class="sl-device-row"><span class="sl-icon-box"><i data-lucide="smartphone" aria-hidden="true"></i></span><div><strong>Phone</strong><small>Charging · 14:09</small></div><div class="sl-device-value">64<span>%</span></div></div><div class="sl-meter"><span style="width:64%"></span></div>
+        <div class="sl-device-row sl-low"><span class="sl-icon-box"><i data-lucide="watch" aria-hidden="true"></i></span><div><strong>Galaxy Fit3</strong><small>Low battery · 14:06</small></div><div class="sl-device-value">18<span>%</span></div></div><div class="sl-meter sl-low"><span style="width:18%"></span></div>
+        <div class="sl-footnote">Saved readings · Heart-rate trend, not an ECG</div>
+      </div>
+      <div class="sl-bottom-nav" aria-label="Navigation preview"><span class="sl-nav-active"><i data-lucide="house" aria-hidden="true"></i>Updates</span><span><i data-lucide="map-pin" aria-hidden="true"></i>Location</span><span><i data-lucide="watch" aria-hidden="true"></i>Wearable</span><span><i data-lucide="users" aria-hidden="true"></i>Phones</span><span><i data-lucide="settings" aria-hidden="true"></i>Settings</span></div>
+      <div class="sl-home-indicator"></div>
+    </div>
+  </section>
+
+  <section id="sl-design-3" role="tabpanel" aria-labelledby="sl-tab-3" hidden>
+    <div class="sl-phone sl-focus" aria-label="Focus design preview">
+      <div class="sl-system"><span>14:10</span><span><i data-lucide="signal" aria-hidden="true"></i><i data-lucide="wifi" aria-hidden="true"></i></span></div>
+      <header class="sl-header"><div class="sl-brand">SeniorLink</div><span class="sl-avatar">G</span></header>
+      <div class="sl-body">
+        <div class="sl-focus-title"><h2>Grandad</h2><span>Last connected at 14:09</span></div>
+        <div class="sl-focus-pulse"><div class="sl-section-label"><i data-lucide="heart" aria-hidden="true"></i>Heart rate</div><div class="sl-reading">72 <span>bpm</span></div><div>Recorded at 14:08</div></div>
+        <div class="sl-period" aria-label="Heart-rate range"><button type="button" data-hours="1" aria-pressed="true">Last hour</button><button type="button" data-hours="24" aria-pressed="false">Last 24 hours</button></div>
+        <div class="sl-chart" data-chart="focus" aria-label="Sample heart-rate history"></div>
+        <div class="sl-focus-battery"><div><i data-lucide="smartphone" aria-hidden="true"></i><strong>Phone</strong><span>64%</span></div><p>Charging · Recorded 14:09</p><div class="sl-meter"><span style="width:64%"></span></div></div>
+        <div class="sl-focus-battery sl-low"><div><i data-lucide="watch" aria-hidden="true"></i><strong>Smartwatch</strong><span>18%</span></div><p>Low battery · Recorded 14:06</p><div class="sl-meter"><span style="width:18%"></span></div></div>
+        <div class="sl-footnote">Saved readings. This graph is not an ECG.</div>
+      </div>
+      <div class="sl-bottom-nav" aria-label="Navigation preview"><span class="sl-nav-active"><i data-lucide="house" aria-hidden="true"></i>Updates</span><span><i data-lucide="map-pin" aria-hidden="true"></i>Location</span><span><i data-lucide="watch" aria-hidden="true"></i>Wearable</span><span><i data-lucide="users" aria-hidden="true"></i>Phones</span><span><i data-lucide="settings" aria-hidden="true"></i>Settings</span></div>
+      <div class="sl-home-indicator"></div>
+    </div>
+  </section>
+
+  <section id="sl-design-4" role="tabpanel" aria-labelledby="sl-tab-4" hidden>
+    <div class="sl-phone sl-journal" aria-label="Journal design preview">
+      <div class="sl-system"><span>14:10</span><span><i data-lucide="signal" aria-hidden="true"></i><i data-lucide="wifi" aria-hidden="true"></i></span></div>
+      <header class="sl-header"><div class="sl-brand">SeniorLink</div><span class="sl-journal-date">SAT, 12 SEP</span></header>
+      <div class="sl-body">
+        <div class="sl-greeting"><span class="sl-overline">YOUR FAMILY JOURNAL</span><h2>Grandad’s day.</h2><span class="sl-muted">Last connected at 14:09</span></div>
+        <div class="sl-journal-entry"><div class="sl-entry-time">14:09<span class="sl-entry-dot"></span></div><div class="sl-entry-content"><div class="sl-label-row"><strong><i data-lucide="smartphone" aria-hidden="true"></i>Phone</strong><b>64%</b></div><div class="sl-meter"><span style="width:64%"></span></div><span class="sl-muted">Charging</span></div></div>
+        <div class="sl-journal-entry sl-journal-heart"><div class="sl-entry-time">14:08<span class="sl-entry-dot"></span></div><div class="sl-entry-content"><span class="sl-overline">HEART RATE · GALAXY FIT3</span><div class="sl-reading">72 <span>bpm</span></div><div class="sl-chart" data-chart="journal" aria-label="Sample heart-rate history"></div><div class="sl-period" aria-label="Heart-rate range"><button type="button" data-hours="1" aria-pressed="true">1 hour</button><button type="button" data-hours="24" aria-pressed="false">24 hours</button></div></div></div>
+        <div class="sl-journal-entry sl-low"><div class="sl-entry-time">14:06<span class="sl-entry-dot"></span></div><div class="sl-entry-content"><div class="sl-label-row"><strong><i data-lucide="watch" aria-hidden="true"></i>Smartwatch</strong><b>18%</b></div><div class="sl-meter"><span style="width:18%"></span></div><span>Low battery</span></div></div>
+        <div class="sl-footnote">Recorded times · Heart-rate trend, not an ECG</div>
+      </div>
+      <div class="sl-bottom-nav" aria-label="Navigation preview"><span class="sl-nav-active"><i data-lucide="house" aria-hidden="true"></i>Updates</span><span><i data-lucide="map-pin" aria-hidden="true"></i>Location</span><span><i data-lucide="watch" aria-hidden="true"></i>Wearable</span><span><i data-lucide="users" aria-hidden="true"></i>Phones</span><span><i data-lucide="settings" aria-hidden="true"></i>Settings</span></div>
+      <div class="sl-home-indicator"></div>
+    </div>
+  </section>
+
+  <section id="sl-design-5" role="tabpanel" aria-labelledby="sl-tab-5" hidden>
+    <div class="sl-phone sl-night" aria-label="Night design preview">
+      <div class="sl-system"><span>14:10</span><span><i data-lucide="signal" aria-hidden="true"></i><i data-lucide="wifi" aria-hidden="true"></i></span></div>
+      <header class="sl-header"><div class="sl-brand"><i data-lucide="heart-handshake" aria-hidden="true"></i>SeniorLink</div><span class="sl-night-badge">FAMILY</span></header>
+      <div class="sl-body">
+        <div class="sl-night-heading"><span class="sl-avatar">G</span><div><h2>Grandad</h2><span class="sl-muted">Last connected 14:09</span></div></div>
+        <div class="sl-night-pulse"><span class="sl-overline">HEART RATE</span><div class="sl-reading">72 <span>bpm</span></div><span class="sl-muted">Galaxy Fit3 · Recorded at 14:08</span></div>
+        <div class="sl-night-chart"><div class="sl-period" aria-label="Heart-rate range"><button type="button" data-hours="1" aria-pressed="true">1 hour</button><button type="button" data-hours="24" aria-pressed="false">24 hours</button></div><div class="sl-chart" data-chart="night" aria-label="Sample heart-rate history"></div></div>
+        <div class="sl-battery-pair sl-rings"><div class="sl-ring-card"><div class="sl-ring" data-percent="64" aria-label="Phone battery 64 percent"><strong>64<span>%</span></strong></div><div class="sl-ring-label"><i data-lucide="smartphone" aria-hidden="true"></i>Phone</div><small>Charging · 14:09</small></div><div class="sl-ring-card sl-low"><div class="sl-ring" data-percent="18" aria-label="Smartwatch battery 18 percent"><strong>18<span>%</span></strong></div><div class="sl-ring-label"><i data-lucide="watch" aria-hidden="true"></i>Smartwatch</div><small>Low battery · 14:06</small></div></div>
+        <div class="sl-footnote">Saved readings · Heart-rate trend, not an ECG</div>
+      </div>
+      <div class="sl-bottom-nav" aria-label="Navigation preview"><span class="sl-nav-active"><i data-lucide="house" aria-hidden="true"></i>Updates</span><span><i data-lucide="map-pin" aria-hidden="true"></i>Location</span><span><i data-lucide="watch" aria-hidden="true"></i>Wearable</span><span><i data-lucide="users" aria-hidden="true"></i>Phones</span><span><i data-lucide="settings" aria-hidden="true"></i>Settings</span></div>
+      <div class="sl-home-indicator"></div>
+    </div>
+  </section>
+</div>
+<style>
+#sl-proposals { width:100%; }
+#sl-proposals .sl-context { display:flex;flex-wrap:wrap;gap:8px 20px;justify-content:space-between;margin:14px 0 20px;font:13px/1.5 system-ui,sans-serif;color:light-dark(#515b55,#b7c5bc); }
+#sl-proposals .sl-context #sl-direction { font-weight:600;color:light-dark(#233c30,#e5eee8); }
+#sl-proposals [role="tabpanel"][hidden] { display:none; }
+#sl-proposals .sl-phone { --sl-bg:light-dark(#f6f8f4,#15241f);--sl-card:light-dark(#ffffff,#20332b);--sl-ink:light-dark(#1d3329,#f0f5ef);--sl-muted:light-dark(#586d61,#b3c6ba);--sl-accent:light-dark(#226953,#a6d6ba);--sl-soft:light-dark(#e4eee5,#314c3a);--sl-line:light-dark(#d9e4dc,#3e5447);--sl-low:light-dark(#9c5226,#ffc58f);--sl-lowbg:light-dark(#fff0df,#49331f);--sl-chart:light-dark(#b4495d,#ff9caf);--sl-heart:light-dark(#fff0f0,#412c32); width:min(100%,390px);margin:0 auto;background:var(--sl-bg);color:var(--sl-ink);border:1px solid var(--sl-line);border-radius:28px;overflow:hidden;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.4;box-sizing:border-box;box-shadow:0 10px 34px light-dark(#23372912,#00000022); }
+#sl-proposals .sl-phone * { box-sizing:border-box; }
+#sl-proposals .sl-phone h2,#sl-proposals .sl-phone p { margin:0; }
+#sl-proposals .sl-phone h2 { font:600 28px/1.2 Arial,Helvetica,sans-serif;letter-spacing:-.8px;color:var(--sl-ink); }
+#sl-proposals .sl-phone small { font-size:12px;line-height:1.45; }
+#sl-proposals .sl-phone svg.lucide { width:19px;height:19px;stroke-width:1.8;flex-shrink:0; }
+#sl-proposals .sl-system { height:36px;padding:12px 23px 0;display:flex;justify-content:space-between;font-size:12px;font-weight:600; }
+#sl-proposals .sl-system>span:last-child { display:flex;gap:6px; }
+#sl-proposals .sl-system svg.lucide { width:13px;height:13px; }
+#sl-proposals .sl-header { display:flex;justify-content:space-between;align-items:center;padding:14px 21px; }
+#sl-proposals .sl-brand { display:flex;align-items:center;gap:7px;font-size:19px;font-weight:700;letter-spacing:-.5px; }
+#sl-proposals .sl-brand svg { color:var(--sl-accent); }
+#sl-proposals .sl-avatar { display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:var(--sl-soft);color:var(--sl-accent);font-size:14px;font-weight:700; }
+#sl-proposals .sl-body { padding:8px 20px 18px; }
+#sl-proposals .sl-greeting { margin:8px 0 20px; }
+#sl-proposals .sl-greeting h2 { margin:5px 0 7px; }
+#sl-proposals .sl-overline { font-size:11px;font-weight:700;letter-spacing:1.5px; }
+#sl-proposals .sl-muted { color:var(--sl-muted);font-size:12px; }
+#sl-proposals .sl-heart-panel { background:var(--sl-heart);border-radius:22px;padding:18px; }
+#sl-proposals .sl-label-row { display:flex;justify-content:space-between;align-items:center;gap:8px; }
+#sl-proposals .sl-label-row>span:first-child,#sl-proposals .sl-label-row>strong { display:flex;align-items:center;gap:7px;font-weight:600;font-size:14px; }
+#sl-proposals .sl-tag { font-size:11px;color:var(--sl-muted); }
+#sl-proposals .sl-reading { font-size:64px;line-height:1.05;font-weight:700;letter-spacing:-3px;margin:12px 0 2px;font-variant-numeric:tabular-nums; }
+#sl-proposals .sl-reading>span { font-size:18px;font-weight:400;letter-spacing:0; }
+#sl-proposals .sl-chart { width:100%;height:140px;margin:13px 0 6px; }
+#sl-proposals .sl-chart>svg { display:block;overflow:visible;width:100%;height:100%; }
+#sl-proposals .sl-period { display:flex;gap:3px;justify-content:flex-end; }
+#sl-proposals .sl-period button { border:0;background:transparent;color:var(--sl-muted);font:600 12px/1.3 Arial,sans-serif;padding:9px 13px;border-radius:9px;cursor:pointer;min-height:34px; }
+#sl-proposals .sl-period button[aria-pressed="true"] { background:var(--sl-card);color:var(--sl-ink); }
+#sl-proposals .sl-section-label { display:flex;align-items:center;gap:7px;margin:21px 0 10px;font-size:14px;font-weight:600; }
+#sl-proposals .sl-battery-pair { display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px; }
+#sl-proposals .sl-battery { background:var(--sl-card);border-radius:18px;padding:14px;display:flex;flex-direction:column;align-items:flex-start;gap:5px; }
+#sl-proposals .sl-battery>svg { margin-bottom:2px;color:var(--sl-accent); }
+#sl-proposals .sl-battery>span { font-size:12px; }
+#sl-proposals .sl-battery strong { font-size:31px;font-weight:700;line-height:1.15;letter-spacing:-1px; }
+#sl-proposals .sl-battery strong>span { font-size:19px; }
+#sl-proposals .sl-battery small { color:var(--sl-muted);font-size:11px; }
+#sl-proposals .sl-meter { height:5px;width:100%;background:var(--sl-soft);border-radius:5px;margin:7px 0;overflow:hidden; }
+#sl-proposals .sl-meter>span { display:block;height:100%;background:var(--sl-accent);border-radius:5px; }
+#sl-proposals .sl-low { --sl-accent:var(--sl-low); }
+#sl-proposals .sl-battery.sl-low { background:var(--sl-lowbg); }
+#sl-proposals .sl-low strong,#sl-proposals .sl-low small { color:var(--sl-low); }
+#sl-proposals .sl-footnote { color:var(--sl-muted);font-size:11px;text-align:center;margin-top:18px;line-height:1.5; }
+#sl-proposals .sl-bottom-nav { display:flex;justify-content:space-around;padding:13px 8px 9px;border-top:1px solid var(--sl-line);background:var(--sl-card); }
+#sl-proposals .sl-bottom-nav>span { display:flex;flex-direction:column;align-items:center;gap:5px;font-size:11px;color:var(--sl-muted); }
+#sl-proposals .sl-bottom-nav .sl-nav-active { color:var(--sl-accent);font-weight:700; }
+#sl-proposals .sl-home-indicator { height:4px;background:var(--sl-ink);width:96px;border-radius:4px;margin:10px auto 9px;opacity:.7; }
+#sl-proposals .sl-vital { --sl-bg:light-dark(#f4f6f9,#151e2e);--sl-card:light-dark(#fff,#203149);--sl-ink:light-dark(#182846,#edf4ff);--sl-muted:light-dark(#617087,#aec3df);--sl-accent:light-dark(#275bd2,#87b5ff);--sl-soft:light-dark(#dce7ff,#2d4772);--sl-line:light-dark(#d5deec,#344963);--sl-chart:light-dark(#275bd2,#9cc8ff);border-radius:20px; }
+#sl-proposals .sl-vital .sl-header { padding-top:17px;padding-bottom:16px;border-bottom:1px solid var(--sl-line); }
+#sl-proposals .sl-brand-dot { width:7px;height:7px;border-radius:2px;background:var(--sl-accent);margin-top:10px; }
+#sl-proposals .sl-small-label { font:600 11px/1.5 Arial,sans-serif;letter-spacing:1.5px;color:var(--sl-muted); }
+#sl-proposals .sl-vital-title { display:flex;justify-content:space-between;align-items:center;margin:16px 0 18px; }
+#sl-proposals .sl-vital-title h2 { font-size:32px;margin-bottom:5px; }
+#sl-proposals .sl-vital .sl-avatar { border-radius:11px; }
+#sl-proposals .sl-vital-hero { display:flex;justify-content:space-between;background:light-dark(#285bd1,#32569b);color:light-dark(#fff,#fff);padding:20px;border-radius:12px;gap:12px; }
+#sl-proposals .sl-vital-hero .sl-reading { margin:10px 0 4px;font-size:76px;display:flex;gap:9px;align-items:baseline; }
+#sl-proposals .sl-vital-hero>div>span:last-child { font-size:11px; }
+#sl-proposals .sl-vital-symbol { display:flex;flex-direction:column;justify-content:space-between;align-items:flex-end;font-size:11px; }
+#sl-proposals .sl-vital-symbol svg.lucide { width:36px;height:36px;stroke-width:1.4; }
+#sl-proposals .sl-vital-graph { background:var(--sl-card);padding:16px 14px 5px;margin-top:12px;border-radius:12px; }
+#sl-proposals .sl-vital .sl-period button[aria-pressed="true"] { background:var(--sl-soft); }
+#sl-proposals .sl-vital .sl-chart { height:135px;margin-top:8px; }
+#sl-proposals .sl-device-heading { display:flex;justify-content:space-between;font-size:11px;letter-spacing:1.3px;color:var(--sl-muted);margin-top:23px;margin-bottom:5px; }
+#sl-proposals .sl-device-row { display:flex;align-items:center;gap:11px;margin-top:15px; }
+#sl-proposals .sl-icon-box { width:36px;height:39px;display:grid;place-items:center;background:var(--sl-card);border-radius:8px;color:var(--sl-accent); }
+#sl-proposals .sl-device-row strong { display:block;font-size:14px; }
+#sl-proposals .sl-device-row small { display:block;font-size:11px;color:var(--sl-muted);margin-top:2px; }
+#sl-proposals .sl-device-value { margin-left:auto;font-size:29px;font-weight:700;letter-spacing:-1px; }
+#sl-proposals .sl-device-value>span { font-size:16px; }
+#sl-proposals .sl-device-row.sl-low .sl-device-value { color:var(--sl-low); }
+#sl-proposals .sl-focus { --sl-bg:light-dark(#fff,#10201b);--sl-card:light-dark(#fff,#152b23);--sl-ink:light-dark(#102d23,#f6fff8);--sl-muted:light-dark(#35594a,#c0d9c7);--sl-accent:light-dark(#12563d,#b2e6c0);--sl-soft:light-dark(#dbeae0,#315240);--sl-line:light-dark(#ceddd3,#4b6b58);--sl-chart:var(--sl-accent);border-radius:20px; }
+#sl-proposals .sl-focus .sl-header { border-bottom:1px solid var(--sl-line); }
+#sl-proposals .sl-focus-title { margin:15px 0 22px; }
+#sl-proposals .sl-focus-title h2 { font-size:34px; }
+#sl-proposals .sl-focus-title>span { display:block;font-size:15px;margin-top:4px;color:var(--sl-muted); }
+#sl-proposals .sl-focus-pulse .sl-section-label { font-size:20px;margin-bottom:8px; }
+#sl-proposals .sl-focus-pulse .sl-reading { font-size:88px;margin:8px 0; }
+#sl-proposals .sl-focus .sl-reading>span { font-size:25px; }
+#sl-proposals .sl-focus-pulse>div:last-child { font-size:16px;color:var(--sl-muted); }
+#sl-proposals .sl-focus .sl-period { justify-content:stretch;gap:8px;margin-top:22px; }
+#sl-proposals .sl-focus .sl-period button { flex:1;min-height:44px;padding:10px 6px;font-size:14px;background:var(--sl-soft); }
+#sl-proposals .sl-focus .sl-period button[aria-pressed="true"] { background:var(--sl-accent);color:var(--sl-bg); }
+#sl-proposals .sl-focus .sl-chart { height:120px;margin-bottom:15px; }
+#sl-proposals .sl-focus-battery { border-top:1px solid var(--sl-line);padding:17px 0 12px; }
+#sl-proposals .sl-focus-battery>div:first-child { display:flex;align-items:center;gap:9px; }
+#sl-proposals .sl-focus-battery strong { font-size:19px; }
+#sl-proposals .sl-focus-battery>div:first-child>span { font-size:30px;font-weight:700;margin-left:auto; }
+#sl-proposals .sl-focus-battery p { font-size:14px;color:var(--sl-muted);margin-top:6px; }
+#sl-proposals .sl-focus-battery .sl-meter { height:7px;margin-top:12px; }
+#sl-proposals .sl-focus .sl-bottom-nav>span { font-size:11px; }
+#sl-proposals .sl-focus .sl-footnote { font-size:12px;text-align:left;margin-top:4px; }
+#sl-proposals .sl-journal { --sl-bg:light-dark(#faf4e9,#2a251e);--sl-card:light-dark(#fffdf8,#383126);--sl-ink:light-dark(#493b2b,#f5e9d7);--sl-muted:light-dark(#79634d,#c8b39c);--sl-accent:light-dark(#847043,#d9c385);--sl-soft:light-dark(#e9deca,#514732);--sl-line:light-dark(#dfd1bb,#65553e);--sl-chart:light-dark(#ad614b,#efaf90);border-radius:22px; }
+#sl-proposals .sl-journal .sl-brand { font-family:Georgia,serif;font-weight:400;font-size:22px; }
+#sl-proposals .sl-journal .sl-header { border-bottom:1px solid var(--sl-line);padding-bottom:19px; }
+#sl-proposals .sl-journal-date { font-size:11px;letter-spacing:1px;color:var(--sl-muted); }
+#sl-proposals .sl-journal .sl-greeting { margin-top:23px;margin-bottom:25px; }
+#sl-proposals .sl-journal .sl-greeting h2 { font:400 37px/1.15 Georgia,serif;letter-spacing:-1.5px;margin:7px 0 9px; }
+#sl-proposals .sl-journal .sl-overline { font-size:11px;letter-spacing:1.3px; }
+#sl-proposals .sl-journal-entry { display:grid;grid-template-columns:42px minmax(0,1fr);gap:18px;position:relative; }
+#sl-proposals .sl-entry-time { position:relative;padding-top:17px;font-size:11px;color:var(--sl-muted);border-right:1px solid var(--sl-line); }
+#sl-proposals .sl-entry-dot { position:absolute;right:-4px;top:22px;width:7px;height:7px;border-radius:50%;background:var(--sl-accent); }
+#sl-proposals .sl-entry-content { padding:13px 0 23px;min-width:0; }
+#sl-proposals .sl-entry-content .sl-label-row b { font-size:26px;font-weight:400;font-family:Georgia,serif; }
+#sl-proposals .sl-entry-content .sl-label-row strong { font-size:13px; }
+#sl-proposals .sl-entry-content>span:last-child { font-size:12px; }
+#sl-proposals .sl-journal-heart .sl-entry-content { background:var(--sl-card);border-radius:14px;padding:18px 13px 10px;margin:0 0 16px; }
+#sl-proposals .sl-journal .sl-reading { font:400 64px/1.1 Georgia,serif;letter-spacing:-2px;margin:7px 0 0; }
+#sl-proposals .sl-journal .sl-reading span { font:400 16px/1.3 Arial,sans-serif;letter-spacing:0; }
+#sl-proposals .sl-journal .sl-chart { height:126px;margin-top:8px; }
+#sl-proposals .sl-journal .sl-period { justify-content:flex-start; }
+#sl-proposals .sl-journal .sl-period button { padding:8px 10px;font-size:11px; }
+#sl-proposals .sl-journal .sl-period button[aria-pressed="true"] { background:var(--sl-soft); }
+#sl-proposals .sl-journal .sl-footnote { margin-top:9px;font-size:11px; }
+#sl-proposals .sl-night { color-scheme:dark;--sl-bg:#111b27;--sl-card:#1b2938;--sl-ink:#f1f6fc;--sl-muted:#aab9ca;--sl-accent:#8fe7ce;--sl-soft:#34495a;--sl-line:#314255;--sl-low:#ffc482;--sl-lowbg:#403321;--sl-chart:#8fe7ce;border-radius:28px; }
+#sl-proposals .sl-night .sl-brand { font-size:18px; }
+#sl-proposals .sl-night-badge { color:#8fe7ce;font-size:11px;letter-spacing:1.7px; }
+#sl-proposals .sl-night-heading { display:flex;align-items:center;gap:11px;margin:10px 0 21px; }
+#sl-proposals .sl-night-heading .sl-avatar { width:43px;height:43px; }
+#sl-proposals .sl-night-heading h2 { font-size:23px;margin-bottom:3px; }
+#sl-proposals .sl-night-pulse { text-align:center; }
+#sl-proposals .sl-night-pulse .sl-overline { color:var(--sl-muted);letter-spacing:2px; }
+#sl-proposals .sl-night-pulse .sl-reading { font-size:83px;color:var(--sl-ink);margin:6px 0; }
+#sl-proposals .sl-night-pulse .sl-reading>span { color:var(--sl-accent);font-size:17px; }
+#sl-proposals .sl-night-chart { margin:19px 0 20px;padding:13px 12px 5px;background:var(--sl-card);border-radius:20px; }
+#sl-proposals .sl-night .sl-period { justify-content:center; }
+#sl-proposals .sl-night .sl-period button[aria-pressed="true"] { background:var(--sl-soft); }
+#sl-proposals .sl-night .sl-chart { height:129px;margin-top:12px; }
+#sl-proposals .sl-ring-card { text-align:center;background:var(--sl-card);padding:15px 8px;border-radius:19px; }
+#sl-proposals .sl-ring { position:relative;width:94px;height:94px;margin:0 auto 10px; }
+#sl-proposals .sl-ring>svg { display:block;width:94px;height:94px; }
+#sl-proposals .sl-ring strong { position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:29px;letter-spacing:-1px;font-weight:600;color:var(--sl-ink); }
+#sl-proposals .sl-ring strong>span { font-size:14px;margin:4px 0 0 2px; }
+#sl-proposals .sl-ring-label { display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:4px;font-size:12px; }
+#sl-proposals .sl-ring-label svg.lucide { width:15px;height:15px; }
+#sl-proposals .sl-ring-card small { font-size:11px;color:var(--sl-muted); }
+#sl-proposals .sl-ring-card.sl-low small { color:var(--sl-low); }
+@media(max-width:360px) {
+  #sl-proposals .sl-body { padding-left:15px;padding-right:15px; }
+  #sl-proposals .sl-header { padding-left:16px;padding-right:16px; }
+  #sl-proposals .sl-reading { font-size:57px; }
+  #sl-proposals .sl-heart-panel { padding:15px; }
+  #sl-proposals .sl-vital .sl-body { padding-left:16px;padding-right:16px; }
+  #sl-proposals .sl-focus-battery strong { font-size:17px; }
+  #sl-proposals .sl-journal-entry { grid-template-columns:34px minmax(0,1fr);gap:12px; }
+  #sl-proposals .sl-entry-content .sl-label-row strong { font-size:12px;gap:4px; }
+  #sl-proposals .sl-journal .sl-overline { letter-spacing:.7px; }
+  #sl-proposals .sl-battery-pair { gap:9px; }
+  #sl-proposals .sl-battery { padding:12px; }
+}
+@media(pointer:coarse) { #sl-proposals .sl-period button { min-height:44px; } }
+</style>
+<script>
+(() => {
+  const root = document.getElementById('sl-proposals');
+  const choices = [
+    { id:'1', name:'Calm', detail:'Soft colors and familiar cards' },
+    { id:'2', name:'Vital', detail:'Compact dashboard with a bold pulse reading' },
+    { id:'3', name:'Focus', detail:'Large text and a simpler hierarchy' },
+    { id:'4', name:'Journal', detail:'A warm timeline of recorded updates' },
+    { id:'5', name:'Night', detail:'Dark surfaces and circular battery meters' }
+  ];
+  const state = { design:'1' };
+  const ns = 'http://www.w3.org/2000/svg';
+  function svgElement(name, attrs, text) {
+    const element = document.createElementNS(ns, name);
+    Object.entries(attrs || {}).forEach(([key,value]) => element.setAttribute(key,String(value)));
+    if (text !== undefined) element.textContent = text;
+    return element;
+  }
+  function drawChart(container) {
+    const width = Math.round(container.getBoundingClientRect().width);
+    if (width < 20) return;
+    const height = Math.round(container.getBoundingClientRect().height);
+    const phone = container.closest('.sl-phone');
+    const hours = phone.dataset.hours || '1';
+    const compact = width < 245;
+    const focus = phone.classList.contains('sl-focus');
+    const left = compact ? 29 : 32, right = width - 8, top = 12, bottom = height - 26;
+    const rates = [70,73,72,75,76,74,71,72,74,73,70,71,75,76,74,72,75,79,81,77,70,73,72,78,83,76,74,71,75,72];
+    const end = right - 6;
+    const start = hours === '1' ? left : right - (right-left)/24;
+    const point = (v,i) => [start+(end-start)*i/(rates.length-1),bottom-(v-60)/30*(bottom-top)];
+    const svg = svgElement('svg',{ viewBox:`0 0 ${width} ${height}`,role:'img','aria-label':`Sample ${hours}-hour heart-rate graph; recorded pulse from 70 to 83 bpm, latest 72 bpm.` });
+    svg.append(svgElement('title',{},`Sample heart rate · Last ${hours} ${hours==='1'?'hour':'hours'}`));
+    [60,75,90].forEach(v=>{
+      const y=bottom-(v-60)/30*(bottom-top);
+      svg.append(svgElement('line',{x1:left,y1:y,x2:right,y2:y,stroke:'var(--sl-line)','stroke-width':1}));
+      svg.append(svgElement('text',{x:left-8,y:y+4,'text-anchor':'end',fill:'var(--sl-muted)','font-size':focus?13:11,'font-family':'Arial,sans-serif'},v));
+    });
+    const positions=rates.map(point);
+    if (!phone.classList.contains('sl-journal')) {
+      svg.append(svgElement('path',{d:`M ${positions[0][0]},${bottom} L ${positions.map(p=>p.join(',')).join(' L ')} L ${positions.at(-1)[0]},${bottom} Z`,fill:'var(--sl-chart)','fill-opacity':.07}));
+    }
+    svg.append(svgElement('polyline',{points:positions.map(p=>p.join(',')).join(' '),fill:'none',stroke:'var(--sl-chart)','stroke-width':focus?3:2.4,'stroke-linejoin':'round','stroke-linecap':'round'}));
+    positions.forEach((p,i)=>{ if(hours==='1'||i===positions.length-1) svg.append(svgElement('circle',{cx:p[0],cy:p[1],r:i===positions.length-1?3.8:2.3,fill:'var(--sl-chart)'})); });
+    const labels=hours==='1'?['13:10','13:40','14:10']:['11 Sep','00:00','12 Sep'];
+    labels.forEach((label,i)=>svg.append(svgElement('text',{x:i===0?left:i===1?(left+right)/2:right,y:height-5,'text-anchor':i===0?'start':i===1?'middle':'end',fill:'var(--sl-muted)','font-size':focus?13:11,'font-family':'Arial,sans-serif'},label)));
+    container.replaceChildren(svg);
+  }
+  function render() {
+    choices.forEach(choice=>{
+      const active=choice.id===state.design;
+      const tab=root.querySelector('#sl-tab-'+choice.id);
+      tab.setAttribute('aria-selected',String(active));
+      tab.classList.toggle('active',active);
+      root.querySelector('#sl-design-'+choice.id).hidden=!active;
+    });
+    root.querySelector('#sl-direction').textContent=choices.find(choice=>choice.id===state.design).detail;
+    requestAnimationFrame(()=>root.querySelectorAll('#sl-design-'+state.design+' .sl-chart').forEach(drawChart));
+  }
+  root.querySelectorAll('[role="tab"]').forEach(tab=>tab.addEventListener('click',()=>{state.design=tab.id.slice(-1);render();}));
+  root.querySelectorAll('.sl-period button').forEach(button=>button.addEventListener('click',()=>{
+    const phone=button.closest('.sl-phone');
+    phone.dataset.hours=button.dataset.hours;
+    phone.querySelectorAll('.sl-period button').forEach(item=>item.setAttribute('aria-pressed',String(item===button)));
+    phone.querySelectorAll('.sl-chart').forEach(drawChart);
+  }));
+  root.querySelectorAll('.sl-ring').forEach(ring=>{
+    const percent=Number(ring.dataset.percent);
+    const svg=svgElement('svg',{viewBox:'0 0 94 94','aria-hidden':'true'});
+    svg.append(svgElement('circle',{cx:47,cy:47,r:40,fill:'none',stroke:'var(--sl-soft)','stroke-width':5}));
+    const circumference=2*Math.PI*40;
+    svg.append(svgElement('circle',{cx:47,cy:47,r:40,fill:'none',stroke:'var(--sl-accent)','stroke-width':5,'stroke-dasharray':`${circumference*percent/100} ${circumference}`,'stroke-linecap':'round',transform:'rotate(-90 47 47)'}));
+    ring.prepend(svg);
+  });
+  const observer=new ResizeObserver(entries=>entries.forEach(entry=>drawChart(entry.target)));
+  root.querySelectorAll('.sl-chart').forEach(chart=>observer.observe(chart));
+  render();
+  if(globalThis.Tweak) {
+    const tweak=new Tweak({container:root,onChange:render});
+    tweak.addSelect(state,'design',{label:'Design direction',options:choices.map(choice=>({label:choice.id+' · '+choice.name,value:choice.id}))});
+  }
+})();
+</script>

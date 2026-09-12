@@ -12,6 +12,22 @@ class ProtocolTest {
     private val event = Event(1, Kind.UNLOCK, 100)
     private val batch = Batch(source = source, through = 1, latest = 1, earliest = 1, events = listOf(event))
 
+    @Test fun `phone battery is opt in validated and uses a new protocol`() {
+        assertFalse(Settings().allows(Kind.PHONE_BATTERY))
+        assertTrue(Settings(phoneBattery = true).allows(Kind.PHONE_BATTERY))
+        val battery = Event(1, Kind.PHONE_BATTERY, 100, phoneBattery = PhoneBattery(0, false))
+        battery.validate()
+        assertEquals(battery, Wire.decode<Event>(Wire.encode(battery), Wire.MAX_RESPONSE))
+        assertFailsWith<IllegalArgumentException> { battery.copy(phoneBattery = PhoneBattery(-1)).validate() }
+        assertFailsWith<IllegalArgumentException> { battery.copy(phoneBattery = PhoneBattery(101)).validate() }
+        assertFailsWith<IllegalArgumentException> { battery.copy(phoneBattery = null).validate() }
+        assertFailsWith<IllegalArgumentException> { battery.copy(kind = Kind.CHECK_IN).validate() }
+        assertFailsWith<IllegalArgumentException> { battery.copy(body = "unexpected").validate() }
+        assertFailsWith<IllegalArgumentException> { Pull(version = 2, after = 0).validate() }
+        assertEquals("family.seniorlink/sync/3", Wire.ALPN.toString(Charsets.UTF_8))
+        assertFalse(Wire.json.decodeFromString<Settings>("{\"role\":\"SHARER\"}").phoneBattery)
+    }
+
     @Test fun `wire round trip and pairing normalization`() {
         assertEquals(batch, Wire.decode<Batch>(Wire.encode(batch), Wire.MAX_RESPONSE))
         assertEquals(source, Pairing.parse("  seniorlink:${source.uppercase()} "))

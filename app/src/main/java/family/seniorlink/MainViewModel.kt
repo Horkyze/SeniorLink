@@ -23,6 +23,7 @@ data class ScreenState(
     val events: List<StoredEvent> = emptyList(),
     val locations: List<StoredEvent> = emptyList(),
     val wearables: List<StoredEvent> = emptyList(),
+    val phoneBatteries: List<StoredEvent> = emptyList(),
     val pendingTelegram: Long = 0,
     val tokenSaved: Boolean = false,
     val fatalError: String? = null,
@@ -67,6 +68,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 peers = peers, events = app.store.recent(),
                 locations = sources.flatMap { app.store.locations(it) },
                 wearables = sources.flatMap { app.store.wearables(it) },
+                phoneBatteries = sources.mapNotNull { app.store.phoneBattery(it) },
                 pendingTelegram = app.store.pendingTelegram(),
                 tokenSaved = app.secrets.read("telegram")?.isNotEmpty() == true,
             )

@@ -45,6 +45,6 @@ class WearableTest {
         val event = Wire.json.decodeFromString<Event>("""{"sequence":1,"kind":"UNLOCK","occurredAt":100}""")
         event.validate()
         assertNull(event.wearable)
-        assertEquals(2, Wire.VERSION)
+        assertEquals(3, Wire.VERSION)
     }
 }

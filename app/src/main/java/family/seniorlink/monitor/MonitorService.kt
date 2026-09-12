@@ -98,6 +98,13 @@ class MonitorService : Service() {
             ContextCompat.registerReceiver(this, unlockReceiver, IntentFilter(Intent.ACTION_USER_PRESENT), ContextCompat.RECEIVER_EXPORTED)
             registered = true
             if (settings.location) startLocation()
+            if (settings.phoneBattery) scope.launch {
+                PhoneBatteryMonitor().run(
+                    enabled = { running.value && app.store.settings.role == Role.SHARER && app.store.settings.phoneBattery },
+                    read = { PhoneBatteryMonitor.read(this@MonitorService) },
+                    onReading = { battery -> app.record(Event(0, Kind.PHONE_BATTERY, System.currentTimeMillis(), phoneBattery = battery)) },
+                )
+            }
             if (settings.wearable) {
                 wearableActive = true
                 scope.launch {

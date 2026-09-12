@@ -13,6 +13,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import family.seniorlink.dashboard.*
 import family.seniorlink.Panel
 import family.seniorlink.ScreenState
 import family.seniorlink.Toggle
@@ -73,19 +74,23 @@ internal fun WearableSettings(draft: Settings, enabled: Boolean, scanner: Wearab
 
 @Composable
 @OptIn(ExperimentalLayoutApi::class)
-internal fun WearableContent(state: ScreenState, live: WearableState, onSettings: () -> Unit) {
+internal fun WearableContent(
+    state: ScreenState,
+    live: WearableState,
+    onSettings: () -> Unit,
+    selectedSource: String? = null,
+    onSelectSource: ((String) -> Unit)? = null,
+) {
     val sharer = state.settings.role == Role.SHARER
     var selected by rememberSaveable { mutableStateOf<String?>(null) }
     var history by rememberSaveable { mutableStateOf(false) }
     var diagnostics by rememberSaveable { mutableStateOf(false) }
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) { while (true) { delay(30_000); now = System.currentTimeMillis() } }
-    val source = if (sharer) state.publicId else state.peers.firstOrNull { it.id == selected }?.id ?: state.peers.firstOrNull()?.id
+    val source = if (sharer) state.publicId else state.peers.firstOrNull { it.id == (selectedSource ?: selected) }?.id ?: state.peers.firstOrNull()?.id
     val events = state.wearables.filter { it.source == source }.sortedByDescending { it.event.occurredAt }
-    val currentDevice = if (sharer) state.settings.wearableId else events.firstOrNull()?.event?.wearable?.deviceId
-    val deviceEvents = events.filter { it.event.wearable?.deviceId == currentDevice }
-    val latest = deviceEvents.flatMap { it.event.wearable?.metrics.orEmpty() }.groupBy { it.metric }
-        .mapValues { (_, values) -> values.maxBy { it.lastAt } }
+    val snapshot = remember(state, live, source) { wearableSnapshot(state, live, source) }
+    val deviceEvents = snapshot.events
     Panel("Wearable readings") {
         if (sharer) {
             Text(if (state.settings.wearableAddress.isBlank()) "No wearable selected" else state.settings.wearableName)
@@ -95,18 +100,18 @@ internal fun WearableContent(state: ScreenState, live: WearableState, onSettings
         } else {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 state.peers.forEach { peer ->
-                    FilterChip(selected = peer.id == source, onClick = { selected = peer.id }, label = { Text(peer.name) })
+                    FilterChip(selected = peer.id == source, onClick = { selected = peer.id; onSelectSource?.invoke(peer.id) }, label = { Text(peer.name) })
                 }
             }
             Text("Saved readings update when this app and the sharing phone can connect.")
             if (events.isNotEmpty()) Text(events.first().event.wearable?.deviceName.orEmpty())
         }
+    }
+    HeartRateCard(snapshot, now)
+    DeviceBatteries(state, source, snapshot, now)
+    Panel("Latest measurements") {
         Text("Times show Bluetooth receipt on the sharing phone; the band's measurement time may differ.")
-        val candidates = if (sharer && state.settings.wearable && live.latest.isNotEmpty()) live.latest
-            else latest.values.map { LiveWearableValue(it.metric, it.latest, it.lastAt) }
-        val lostContactAt = candidates.firstOrNull { it.metric == WearableMetric.CONTACT && it.value == 0.0 }?.receivedAt
-        val values = candidates.filterNot { lostContactAt != null && it.receivedAt <= lostContactAt &&
-            it.metric in setOf(WearableMetric.HEART_RATE, WearableMetric.RR_INTERVAL) }
+        val values = snapshot.values
         if (values.isEmpty()) Text("No wearable readings yet. Available measurements depend on the device's Bluetooth services.")
         values.sortedBy { it.metric.ordinal }.forEach { value ->
             Text("${value.metric.label}: ${formatWearable(value.metric, value.value)}", fontWeight = FontWeight.SemiBold)
@@ -116,7 +121,7 @@ internal fun WearableContent(state: ScreenState, live: WearableState, onSettings
             .flatMap { it.event.wearable?.information.orEmpty().entries }.associate { it.key to it.value }
         information.forEach { (key, value) -> Text("$key: $value") }
         if (!sharer) deviceEvents.firstOrNull()?.event?.wearable?.notes?.forEach { Text("Latest summary note: $it") }
-        Text("Two-minute summaries include ranges and averages. Readings stop when the band is disconnected or not measuring.")
+        Text("The graph shows the last pulse from each two-minute summary. History includes ranges and averages. Readings stop when the band is disconnected or not measuring.")
     }
     if (sharer) Panel("Available Bluetooth data") {
         if (live.capabilities.isEmpty()) Text("Start sharing to discover the selected wearable's services.")

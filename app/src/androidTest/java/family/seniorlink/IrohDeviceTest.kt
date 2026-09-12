@@ -24,7 +24,7 @@ class IrohDeviceTest {
             val keys = List(4) { SecretKey.generate().use { it.toBytes() } }
             val ids = keys.map { bytes -> SecretKey.fromBytes(bytes).use { it.public().use { id -> id.toString() } } }
             val source = Store(context, "test-source-${UUID.randomUUID()}")
-            source.updateSettings(Settings(role = Role.SHARER, unlock = true, wearable = true,
+            source.updateSettings(Settings(role = Role.SHARER, unlock = true, wearable = true, phoneBattery = true,
                 wearableAddress = "AA:BB:CC:DD:EE:FF", wearableName = "Test Fit3"), ids[0])
             source.addPeer(ids[1], "Caregiver A", ids[0])
             source.addPeer(ids[2], "Caregiver B", ids[0])
@@ -55,10 +55,11 @@ class IrohDeviceTest {
             }
             try {
                 val now = System.currentTimeMillis()
-                repeat(24) { source.append(ids[0], Event(0, Kind.UNLOCK, now + it), now) }
+                repeat(23) { source.append(ids[0], Event(0, Kind.UNLOCK, now + it), now) }
                 val wearable = source.append(ids[0], Event(0, Kind.WEARABLE, now,
                     wearable = WearableSummary("Test Fit3", listOf(
                         WearableMetricSummary(WearableMetric.HEART_RATE, now, now, 1, 72.0, 72.0, 72.0, 72.0)))), now)
+                val battery = source.append(ids[0], Event(0, Kind.PHONE_BATTERY, now, phoneBattery = PhoneBattery(64, true)), now)
                 assertTrue(sync(0))
                 assertFalse(sync(0))
                 assertEquals(25L, inboxes[0].cursor(ids[0]))
@@ -69,6 +70,8 @@ class IrohDeviceTest {
                 assertEquals(25, inboxes[1].recent().size)
                 assertEquals(wearable, inboxes[0].wearables(ids[0]).single().event)
                 assertEquals(wearable, inboxes[1].wearables(ids[0]).single().event)
+                assertEquals(battery, inboxes[0].phoneBattery(ids[0])?.event)
+                assertEquals(battery, inboxes[1].phoneBattery(ids[0])?.event)
                 inboxes[0].close()
                 Store(context, inboxNames[0]).use { reopened ->
                     assertEquals(25L, reopened.cursor(ids[0]))

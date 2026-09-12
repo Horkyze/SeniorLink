@@ -6,7 +6,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.view.WindowManager
 import androidx.activity.compose.setContent
-import androidx.compose.material3.MaterialTheme
+import family.seniorlink.ui.CalmTheme
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -117,7 +117,7 @@ class UpdateSettingsUiTest {
             }
             val updates = ViewModelProvider(store, factory)["settings-${generation++}", UpdateViewModel::class.java]
             compose.activity.window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-            compose.activity.setContent { MaterialTheme { SeniorScreen(model, updates) } }
+            compose.activity.setContent { CalmTheme { SeniorScreen(model, updates) } }
         }
         compose.onNodeWithText("Settings", substring = false).performClick()
     }
