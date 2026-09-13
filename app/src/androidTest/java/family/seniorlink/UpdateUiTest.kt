@@ -32,7 +32,7 @@ import java.io.File
 @RunWith(AndroidJUnit4::class)
 class UpdateUiTest {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
-    private val update = AppUpdate("0.1.10", "https://github.com/Horkyze/SeniorLink/releases/download/v0.1.10/SeniorLink-0.1.10-debug.apk")
+    private val update = AppUpdate("0.1.10", "https://github.com/Horkyze/SeniorLink/releases/tag/v0.1.10")
 
     @Before fun setUp() {
         Intents.init()
@@ -40,20 +40,20 @@ class UpdateUiTest {
     }
     @After fun tearDown() { Intents.release() }
 
-    @Test fun downloadOpensExactApkOnlyAfterUserAccepts() {
+    @Test fun opensDetectedReleasePageOnlyAfterUserAccepts() {
         showPrompt()
         compose.onNodeWithText("Update SeniorLink?").assertIsDisplayed()
         compose.onNodeWithText("Version 0.1.10 is available. You have ${BuildConfig.VERSION_NAME}.").assertIsDisplayed()
         screenshot("update-prompt")
         Intents.assertNoUnverifiedIntents()
-        compose.onNodeWithText("Download update").performClick()
-        Intents.intended(allOf(hasAction(Intent.ACTION_VIEW), hasData(update.downloadUrl)))
+        compose.onNodeWithText("View release").performClick()
+        Intents.intended(allOf(hasAction(Intent.ACTION_VIEW), hasData(update.releaseUrl)))
         compose.onNodeWithText("Update SeniorLink?").assertDoesNotExist()
     }
 
-    @Test fun laterDismissesWithoutOpeningDownload() {
+    @Test fun laterDismissesWithoutOpeningReleasePage() {
         showPrompt()
-        compose.onNodeWithText("Download update").assertIsDisplayed()
+        compose.onNodeWithText("View release").assertIsDisplayed()
         compose.onNodeWithText("Later").assertIsDisplayed()
         screenshot("update-prompt-later")
         compose.onNodeWithText("Later").performClick()
@@ -62,20 +62,20 @@ class UpdateUiTest {
     }
 
     @Test fun missingBrowserKeepsPromptAndProvidesCopyableLink() {
-        showPrompt(canOpenDownload = false)
-        compose.onNodeWithText("Download update").performClick()
+        showPrompt(canOpenRelease = false)
+        compose.onNodeWithText("View release").performClick()
         compose.onNodeWithText("Update SeniorLink?").assertIsDisplayed()
-        compose.onNodeWithText(update.downloadUrl).assertExists()
+        compose.onNodeWithText(update.releaseUrl).assertExists()
         compose.onNodeWithText("Later").performClick()
         compose.onNodeWithText("Update SeniorLink?").assertDoesNotExist()
         Intents.assertNoUnverifiedIntents()
     }
 
-    private fun showPrompt(canOpenDownload: Boolean = true) {
+    private fun showPrompt(canOpenRelease: Boolean = true) {
         val visible = mutableStateOf(true)
         compose.runOnUiThread {
             compose.activity.window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-            val context = if (canOpenDownload) compose.activity else object : ContextWrapper(compose.activity) {
+            val context = if (canOpenRelease) compose.activity else object : ContextWrapper(compose.activity) {
                 override fun startActivity(intent: Intent) { throw ActivityNotFoundException() }
             }
             compose.activity.setContent {

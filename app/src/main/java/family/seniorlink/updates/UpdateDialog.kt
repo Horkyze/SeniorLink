@@ -27,24 +27,24 @@ internal fun UpdateDialog(update: AppUpdate, dismiss: () -> Unit) {
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("Version ${update.version} is available. You have ${BuildConfig.VERSION_NAME}.")
-                Text("Download the APK, then open it to update SeniorLink.")
+                Text("Open the GitHub release page. Download the APK from Assets, then open it to update SeniorLink.")
                 if (openFailed) {
-                    Text("No browser could open the download. Copy this link into a browser:")
-                    SelectionContainer { Text(update.downloadUrl) }
+                    Text("No browser could open the release page. Copy this link into a browser:")
+                    SelectionContainer { Text(update.releaseUrl) }
                 }
             }
         },
         confirmButton = {
             TextButton(onClick = {
                 try {
-                    context.startActivity(Intent(Intent.ACTION_VIEW, update.downloadUrl.toUri()))
+                    context.startActivity(Intent(Intent.ACTION_VIEW, update.releaseUrl.toUri()))
                     dismiss()
                 } catch (_: ActivityNotFoundException) {
                     openFailed = true
                 } catch (_: SecurityException) {
                     openFailed = true
                 }
-            }) { Text("Download update") }
+            }) { Text("View release") }
         },
         dismissButton = { TextButton(onClick = dismiss) { Text("Later") } },
     )

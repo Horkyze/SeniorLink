@@ -56,7 +56,7 @@ The emulator tests do not establish manufacturer-specific battery behavior.
 
 ## Heart-rate graph and batteries
 
-- Install 0.1.7 on all paired phones. Verify in-place updates preserve pairing,
+- Install 0.1.8 on all paired phones. Verify in-place updates preserve pairing,
   settings, history and independent caregiver catch-up.
 - Enable Share phone battery only on the sharing phone, save and start. Compare
   its percentage and charging label with Android, then plug/unplug the charger

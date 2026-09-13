@@ -6,8 +6,8 @@ Caregivers open the same app on their own phones to see check-ins, recent phone
 activity, locations, selected SMS and readings from compatible wearables. Updates
 travel over an encrypted phone-to-phone connection; you don't need to run a server.
 
-**[Download the Android app](https://github.com/Horkyze/SeniorLink/releases/download/v0.1.7/SeniorLink-0.1.7-debug.apk)**
-· [Release notes](https://github.com/Horkyze/SeniorLink/releases/tag/v0.1.7)
+**[Download the Android app](https://github.com/Horkyze/SeniorLink/releases/tag/v0.1.8)**
+· [Release notes](docs/releases/v0.1.8.md)
 · [Wearable setup](docs/wearables.md)
 · [Build from source](#building-and-contributing)
 
@@ -19,7 +19,14 @@ members can catch up independently on their own phones.
 This is an early **family pilot**, not a medical device or emergency-response
 service. It does not send emergency alerts or guarantee continuous monitoring.
 
-## What's new in 0.1.7
+## What's new in 0.1.8
+
+Update prompts now offer **View release**, which opens the GitHub page for the
+newest detected version. Download the APK from **Assets**, then open it to update
+SeniorLink. This avoids starting a direct APK download that some browsers block.
+The same release-page link is available to copy if no browser can open it.
+
+### Dashboard and batteries
 
 The **Calm** design uses soft green surfaces, a pink
 **heart-rate graph** with 1-hour and 24-hour views, and separate **phone battery**
@@ -37,16 +44,18 @@ the selected wearable exposes standard Bluetooth battery data; otherwise it show
 **Unknown**. One wearable is selected per sharing phone; caregivers can switch
 between family phones. Physical Galaxy Fit3 battery support is still unverified.
 
-Install 0.1.7 on **all paired phones**: it uses sync protocol 3 and cannot
-sync with 0.1.6 or older. The published APK uses the same signing key as earlier
-releases; update in place to preserve identity, pairing and history.
+Version 0.1.8 uses sync protocol 3 and can sync with 0.1.7. All paired phones must
+use **0.1.7 or newer**; 0.1.6 and older cannot sync with these versions. The
+published APK uses the same signing key as earlier releases; update in place to
+preserve identity, pairing and history.
 
 ## Get started
 
 You need **Android 8.0 or newer** on the sharing phone and every caregiver phone.
 Both roles use the same APK (the Android installation file).
 
-1. **Install SeniorLink on each phone.** Download the APK above and open it.
+1. **Install SeniorLink on each phone.** Open the release page above, download
+   **SeniorLink-0.1.8-debug.apk** from **Assets**, and open it.
    Android may ask you to allow installation from the browser or file app.
 2. **Choose each phone's role.** Your family member chooses **Share my information**;
    everyone receiving updates chooses **I'm a caregiver**.
@@ -67,11 +76,13 @@ A notification stays visible while sharing. Use **Pause sharing** in the app or
 notification to stop collecting and sharing. Pause before changing settings.
 Removing a caregiver stops future access, but cannot erase updates already received.
 
-**Updating an existing installation?** Install 0.1.7 on **all paired phones**;
-its synchronization protocol cannot communicate with older versions. The published
-APK uses the same signing key as versions 0.1.0–0.1.6, so install it as an update
+**Updating an existing installation?** Install 0.1.8; it can sync with 0.1.7, but
+paired phones running 0.1.6 or older must also be updated. The published
+APK uses the same signing key as versions 0.1.0–0.1.7, so install it as an update
 without uninstalling to keep pairing and history. Versions 0.1.3 onward check for
 updates when opened; 0.1.5 onward also offers **Settings → App updates → Check for updates**.
+If an older version's direct download is blocked, open the release page above
+manually. After installing 0.1.8, future update prompts open the release page.
 The release includes `SHA256SUMS` if you want to verify the download.
 
 ## What can be shared?
@@ -165,7 +176,7 @@ rendered on the phone. Maps need no API key or Google Play Services. See the
 
 | Problem | What to try |
 | --- | --- |
-| No updates arrive | Check that sharing is started, both phones are online, the caregiver app is open and all phones run 0.1.7. Check permissions and battery restrictions on the sharing phone. |
+| No updates arrive | Check that sharing is started, both phones are online, the caregiver app is open and all phones run 0.1.7 or newer. Check permissions and battery restrictions on the sharing phone. |
 | Camera is unavailable for pairing | Use **Copy invitation / Share invitation** on the sharing phone and **Use a shared invitation instead** on the caregiver. Compare the verification code through a trusted conversation. |
 | Pairing expired or the codes differ | Start a new invitation on the sharing phone and keep both apps open. Invitations expire after five minutes. |
 | Wearable is connected but has no readings | Enable measurement on the band, check skin contact and inspect **Wearable → Available Bluetooth data**. Follow the [device checklist](docs/wearables.md#fit3-expectations-and-verification). |
@@ -221,7 +232,7 @@ also be restored without an Android toolchain using Python 3:
 python3 scripts/unpack-pilot.py
 ```
 
-This reconstructs and checksum-verifies `dist/SeniorLink-0.1.7-debug.apk`.
+This reconstructs and checksum-verifies `dist/SeniorLink-0.1.8-debug.apk`.
 The archive parts are not themselves installable. Full APKs, signing material and
 build output remain ignored. CI builds an APK and uploads test reports; it does
 not publish a release automatically.

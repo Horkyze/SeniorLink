@@ -14,7 +14,7 @@ import java.net.HttpURLConnection
 import java.net.URI
 import java.net.URL
 
-data class AppUpdate(val version: String, val downloadUrl: String)
+data class AppUpdate(val version: String, val releaseUrl: String)
 
 sealed interface UpdateCheckResult {
     data class Available(val update: AppUpdate) : UpdateCheckResult
@@ -81,11 +81,14 @@ class ReleaseChecker(
                 val version = ReleaseVersion.parse(release.tag_name) ?: return@mapNotNull null
                 if (version <= installed) return@mapNotNull null
                 // Published pilot APKs are universal; never offer a source archive or checksum.
-                val asset = release.assets.firstOrNull {
+                val hasApk = release.assets.any {
                     it.state == "uploaded" && it.name.endsWith(".apk", ignoreCase = true) &&
                         validDownloadUrl(it.browser_download_url)
-                } ?: return@mapNotNull null
-                version to AppUpdate(release.tag_name.removePrefix("v"), asset.browser_download_url)
+                }
+                if (!hasApk) return@mapNotNull null
+                // Use the validated tag so pilot prereleases also open their own release page.
+                val releaseUrl = "https://github.com/Horkyze/SeniorLink/releases/tag/${release.tag_name}"
+                version to AppUpdate(release.tag_name.removePrefix("v"), releaseUrl)
             }.maxByOrNull { it.first }?.second
         }
 

@@ -37,7 +37,7 @@ class UpdateSettingsUiTest {
     private var generation = 0
     private var original: ScreenState? = null
     private var main: MainViewModel? = null
-    private val update = AppUpdate("0.1.10", "https://github.com/Horkyze/SeniorLink/releases/download/v0.1.10/SeniorLink-0.1.10-debug.apk")
+    private val update = AppUpdate("0.1.10", "https://github.com/Horkyze/SeniorLink/releases/tag/v0.1.10")
 
     @Before fun setUp() {
         Intents.init()
@@ -65,7 +65,7 @@ class UpdateSettingsUiTest {
         Intents.assertNoUnverifiedIntents()
     }
 
-    @Test fun manualCheckOpensExistingUpdatePromptAndOnlyDownloadsAfterAccepting() {
+    @Test fun manualCheckOpensReleasePageOnlyAfterAccepting() {
         showSettings(Role.CAREGIVER) { UpdateCheckResult.Available(update) }
         compose.onNodeWithText("Update SeniorLink?").assertDoesNotExist()
         compose.onNodeWithText("Check for updates").performScrollTo().performClick()
@@ -74,8 +74,8 @@ class UpdateSettingsUiTest {
         compose.onNodeWithText("Later").performClick()
         compose.onNodeWithText("Update SeniorLink?").assertDoesNotExist()
         compose.onNodeWithText("Check for updates").performScrollTo().performClick()
-        compose.onNodeWithText("Download update").performClick()
-        Intents.intended(allOf(hasAction(Intent.ACTION_VIEW), hasData(update.downloadUrl)))
+        compose.onNodeWithText("View release").performClick()
+        Intents.intended(allOf(hasAction(Intent.ACTION_VIEW), hasData(update.releaseUrl)))
     }
 
     @Test fun pendingCheckDisablesButtonAndFailureAllowsRetry() {

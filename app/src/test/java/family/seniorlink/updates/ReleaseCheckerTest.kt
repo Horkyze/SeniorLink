@@ -11,10 +11,11 @@ import java.net.URL
 
 class ReleaseCheckerTest {
     private val download = "https://github.com/Horkyze/SeniorLink/releases/download/v0.1.10/SeniorLink-0.1.10-debug.apk"
+    private val releasePage = "https://github.com/Horkyze/SeniorLink/releases/tag/v0.1.10"
 
-    @Test fun `selects highest version numerically including published pilot prereleases`() {
+    @Test fun `selects highest version release page including published pilot prereleases`() {
         val releases = "[${release("v0.1.3")}, ${release("v0.1.10", extra = ",\"prerelease\":true")}, ${release("v0.1.9")}]"
-        assertEquals(AppUpdate("0.1.10", download), ReleaseChecker.selectUpdate(releases, "0.1.2"))
+        assertEquals(AppUpdate("0.1.10", releasePage), ReleaseChecker.selectUpdate(releases, "0.1.2"))
     }
 
     @Test fun `does not offer installed or older releases`() {
@@ -35,7 +36,7 @@ class ReleaseCheckerTest {
             {"unexpected":"entry"},
             ${release("v0.1.10")}
         ]"""
-        assertEquals(AppUpdate("0.1.10", download), ReleaseChecker.selectUpdate(releases, "0.1.2"))
+        assertEquals(AppUpdate("0.1.10", releasePage), ReleaseChecker.selectUpdate(releases, "0.1.2"))
     }
 
     @Test fun `only offers HTTPS downloads from this repository`() {
@@ -74,7 +75,7 @@ class ReleaseCheckerTest {
             assertNotEquals(caller, Thread.currentThread())
             connection
         }
-        assertEquals(UpdateCheckResult.Available(AppUpdate("0.1.10", download)), checker.check("0.1.2"))
+        assertEquals(UpdateCheckResult.Available(AppUpdate("0.1.10", releasePage)), checker.check("0.1.2"))
         assertTrue(connection.disconnected)
         assertEquals(5_000, connection.connectTimeout)
         assertEquals(5_000, connection.readTimeout)

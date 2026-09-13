@@ -21,7 +21,7 @@ import org.junit.Test
 class UpdateViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     private val store = ViewModelStore()
-    private val update = AppUpdate("0.1.10", "https://github.com/Horkyze/SeniorLink/releases/download/v0.1.10/app.apk")
+    private val update = AppUpdate("0.1.10", "https://github.com/Horkyze/SeniorLink/releases/tag/v0.1.10")
 
     @Before fun setUp() { Dispatchers.setMain(dispatcher) }
     @After fun tearDown() {

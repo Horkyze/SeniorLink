@@ -1,5 +1,70 @@
 # Verification
 
+## Release packaging — 0.1.8 (13 September 2026)
+
+- Version 0.1.8 (version code 9) passes the core/Android JVM checks: 40 core and
+  48 Android tests, with no failures. Debug and instrumentation APK builds pass;
+  lint reports zero errors and 14 warnings.
+- The final APK passes all six update-dialog/Settings checks on the Android 17
+  emulator and all three dialog checks at 2× text size. The large-text prompt was
+  visually checked and font scale restored to 1.0. Browser intents were intercepted
+  using synthetic release data; physical-browser download behavior remains a
+  device check.
+- Downloaded the published 0.1.7 APK and verified its SHA-256 against both GitHub's
+  release digest and its checksum manifest. Both APK signatures verify and have
+  certificate SHA-256
+  `7e4f9088dfb6e1a7175ed42dc7a9d1f32717a21d28165cead7b6adfa04cbc302`.
+  All 12 bundled native libraries are byte-identical to that published APK.
+- Native ABI and 16 KB ELF/ZIP alignment checks pass. Packaged six archive parts
+  and reconstructed the APK with `scripts/unpack-pilot.py` in an isolated temporary
+  directory. Its bytes match both the tested APK and the release asset. SHA-256:
+  `7c6294c7e977261d3b491f8e75bfda452c0db030c1def6ab94a195e9b431c7c5`.
+
+The update-link change does not alter sync protocol 3, consent, identity, pairing,
+settings or history. Version 0.1.8 remains compatible with 0.1.7.
+
+```sh
+. ./scripts/env.sh
+./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest
+python3 scripts/verify-apk.py
+adb -e install -r app/build/outputs/apk/debug/app-debug.apk
+adb -e install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+adb -e shell am instrument -w -r -e class family.seniorlink.UpdateUiTest,family.seniorlink.UpdateSettingsUiTest family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+adb -e shell settings put system font_scale 2.0
+trap 'adb -e shell settings put system font_scale 1.0 >/dev/null' EXIT
+adb -e shell am instrument -w -r -e class family.seniorlink.UpdateUiTest family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+python3 scripts/package-pilot.py
+```
+
+## Update prompt release-page link — source build (13 September 2026)
+
+- The update prompt opens the GitHub page for the newest detected release,
+  including published pilot prereleases. The button says **View release** and
+  explains how to download the APK from Assets. The missing-browser fallback
+  provides the same release-page link.
+- All 48 Android JVM tests pass. All six update-dialog and Settings tests pass
+  on the Android 17 emulator, including the exact browser URL after acceptance,
+  dismissal and missing-browser fallback. Browser intents use synthetic release
+  data and are intercepted; these checks do not download an APK.
+- All three dialog tests also pass at 2× system font scale. The captured prompt
+  was visually checked: the instructions and both buttons fit. Font scale was
+  restored to 1.0 afterwards.
+- Debug and instrumentation APK builds pass. Lint reports zero errors and 14
+  warnings. Native ABI and 16 KB ELF/ZIP alignment checks pass.
+
+```sh
+. ./scripts/env.sh
+./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest
+./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=family.seniorlink.UpdateUiTest,family.seniorlink.UpdateSettingsUiTest
+python3 scripts/verify-apk.py
+adb -e install -r app/build/outputs/apk/debug/app-debug.apk
+adb -e install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+adb -e shell settings put system font_scale 2.0
+trap 'adb -e shell settings put system font_scale 1.0 >/dev/null' EXIT
+adb -e shell am instrument -w -r -e class family.seniorlink.UpdateUiTest family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+git diff --check
+```
+
 ## Release packaging — 0.1.7 (12 September 2026)
 
 - Rechecked the core/Android JVM tests, lint and debug build using the commands
