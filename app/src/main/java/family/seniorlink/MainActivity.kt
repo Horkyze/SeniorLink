@@ -3,6 +3,10 @@ package family.seniorlink
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.Build
+import android.os.PowerManager
+import android.Manifest
+import android.content.pm.PackageManager
 import android.provider.Settings as AndroidSettings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -24,6 +28,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.Lifecycle
+import androidx.core.content.ContextCompat
 import family.seniorlink.core.*
 import family.seniorlink.data.StoredEvent
 import family.seniorlink.location.LocationContent
@@ -38,7 +45,8 @@ import family.seniorlink.updates.UpdateSettings
 import family.seniorlink.ui.CalmTheme
 import family.seniorlink.ui.CalmAppBar
 import family.seniorlink.ui.CalmNavigation
-import family.seniorlink.dashboard.HealthOverview
+import family.seniorlink.dashboard.DailyDashboard
+import family.seniorlink.dashboard.ActivityDetails
 import family.seniorlink.wearable.WearableContent
 import family.seniorlink.wearable.WearableSettings
 import family.seniorlink.wearable.WearableSummaryContent
@@ -70,7 +78,11 @@ internal fun SeniorScreen(model: MainViewModel, updates: UpdateViewModel) {
     val checkingUpdate by updates.checking.collectAsStateWithLifecycle()
     val updateResult by updates.manualResult.collectAsStateWithLifecycle()
     val pairingState by model.pairing.state.collectAsStateWithLifecycle()
+    val activity by model.activityBrowser.state.collectAsStateWithLifecycle()
     val running by MonitorService.running.collectAsStateWithLifecycle()
+    val locationDeferred by MonitorService.locationDeferred.collectAsStateWithLifecycle()
+    val enabledRole by model.app.backgroundSession.role.collectAsStateWithLifecycle()
+    val sharingEnabled = enabledRole == Role.SHARER
     val monitorStatus by model.app.monitorStatus.collectAsStateWithLifecycle()
     val telegramStatus by model.app.telegramStatus.collectAsStateWithLifecycle()
     val peerStatus by model.app.peerStatus.collectAsStateWithLifecycle()
@@ -82,10 +94,22 @@ internal fun SeniorScreen(model: MainViewModel, updates: UpdateViewModel) {
     val scroll = remember(tab) { ScrollState(0) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val permissionRequest by model.permissionRequest.collectAsStateWithLifecycle()
     val permissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
-        model.message("Permissions updated. Tap Start sharing when ready.")
+        model.permissionsUpdated()
+    }
+    LaunchedEffect(permissionRequest) {
+        if (permissionRequest.isNotEmpty()) {
+            permissions.launch(permissionRequest.toTypedArray())
+            model.permissionsLaunched()
+        }
     }
     val family = state.peers.firstOrNull { it.id == updatesSource } ?: state.peers.firstOrNull()
+    val summarySource = if (state.settings.role == Role.SHARER) state.publicId else family?.id
+    val selectSource: (String) -> Unit = { updatesSource = it; model.activityBrowser.source(it) }
+    val extraLocation = state.inspectedLocation
+    val mapState = if (extraLocation == null || state.locations.any { it.source == extraLocation.source && it.event.sequence == extraLocation.event.sequence }) state
+        else state.copy(locations = state.locations + extraLocation)
     Scaffold(
         topBar = { CalmAppBar(if (state.settings.role == Role.CAREGIVER) family?.name?.take(1)?.uppercase() else null) },
         bottomBar = {
@@ -99,7 +123,7 @@ internal fun SeniorScreen(model: MainViewModel, updates: UpdateViewModel) {
             if (state.ready && state.settings.role == Role.UNSET) {
                 Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Panel("Welcome") {
-                        Text("Install this same app on each phone. Choose this phone's role; no monitoring starts automatically.")
+                        Text("Install this same app on each phone. Choose this phone's role. Background updates start after an approved phone connection.")
                         Button(onClick = { model.chooseRole(Role.SHARER) }, modifier = Modifier.fillMaxWidth()) {
                             Text("Share my information")
                         }
@@ -109,7 +133,7 @@ internal fun SeniorScreen(model: MainViewModel, updates: UpdateViewModel) {
                     }
                     Panel("Visible and voluntary") {
                         Text("The sharing phone approves every caregiver. Location, unlock activity and selected SMS each have their own switch.")
-                        Text("Caregivers catch up while their app is open. Both phones must be reachable. This is not an emergency response service.")
+                        Text("Background updates are on by default after connecting. You can pause them in Settings. Both phones must be reachable. This is not an emergency response service.")
                         Text("Use Android app settings → Storage → Clear data to reset the role and identity. Resetting requires pairing again.")
                     }
                 }
@@ -120,90 +144,101 @@ internal fun SeniorScreen(model: MainViewModel, updates: UpdateViewModel) {
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     when (tab) {
-                        0 -> {
-                            if (state.settings.role == Role.CAREGIVER) HealthOverview(state, wearableState, onWearable = { tab = 4 },
-                                selectedSource = updatesSource, onSelectSource = { updatesSource = it })
-                            if (state.settings.role == Role.SHARER) {
-                                Panel(if (running) "Sharing is active" else "Sharing is paused") {
-                                    Text(monitorStatus)
-                                    Text("Approved caregivers: ${state.peers.size}")
-                                    if (running) {
-                                        Button(onClick = model::checkIn, modifier = Modifier.fillMaxWidth()) { Text("I'm okay — check in") }
-                                        OutlinedButton(onClick = model::pause, modifier = Modifier.fillMaxWidth()) { Text("Pause sharing") }
-                                    } else {
-                                        Button(onClick = {
-                                            val missing = MonitorService.missingPermissions(context, state.settings)
-                                            if (missing.isEmpty()) model.start() else permissions.launch(missing.toTypedArray())
-                                        }, modifier = Modifier.fillMaxWidth()) { Text("Start sharing") }
-                                        Text("Starting makes retained information available to approved phones. A visible notification stays on while sharing.")
-                                    }
-                                }
-                            } else {
-                                Panel("Catch-up on open") {
-                                    Text("Cached information appears immediately. Updates arrive only while this app is open and the sharing phone is reachable.")
-                                    if (state.peers.isEmpty()) Text("Go to Phones to pair with your grandfather.")
-                                    state.peers.forEach { peer ->
-                                        Text(peer.name, fontWeight = FontWeight.Bold)
-                                        Text(peerStatus[peer.id] ?: "Waiting to connect")
-                                        Text("Last contact: ${formatTime(peer.lastContact)}")
-                                        if (peer.historyGap) Text("Some older history expired or was withdrawn before this phone received it.")
-                                    }
-                                    Text("Always check timestamps. Missing contact alone is not an emergency signal.")
-                                }
-                            }
-                            if (state.settings.role == Role.SHARER) HealthOverview(state, wearableState, onWearable = { tab = 4 })
-                            Panel("Location") {
-                                val latest = state.locations.maxByOrNull { it.event.occurredAt }
-                                Text(if (latest == null) "No location received yet" else
-                                    "Latest known location • ${formatTime(latest.event.occurredAt)}")
-                                if (latest != null) Text(state.peers.firstOrNull { it.id == latest.source }?.name ?: "This phone")
-                                Button(onClick = {
-                                    locationSource = latest?.source; locationSequence = null; tab = 1
-                                }, modifier = Modifier.fillMaxWidth()) { Text("View location map") }
-                            }
-                            Text("Recent updates", style = MaterialTheme.typography.titleLarge)
-                            if (state.events.isEmpty()) Text("No updates yet. On the sharing phone, tap Start sharing and then I'm okay.")
-                            state.events.forEach { stored -> EventCard(stored, state.peers) {
-                                locationSource = stored.source; locationSequence = stored.event.sequence; tab = 1
-                            } }
-                        }
-                        1 -> LocationContent(state, running, locationSource, locationSequence,
+                        0 -> DailyDashboard(state, wearableState, activity, summarySource,
+                            onSource = selectSource, onDay = model.activityBrowser::date, onToday = model.activityBrowser::today,
+                            onOpen = model.activityBrowser::open, running = running,
+                            onLatest = model.activityBrowser::openLatest,
+                            enabled = enabledRole == state.settings.role,
+                            status = if (state.settings.role == Role.SHARER) monitorStatus else peerStatus[summarySource].orEmpty(),
+                            locationDeferred = locationDeferred, onCheckIn = model::checkIn)
+                        1 -> LocationContent(mapState, running, locationSource, locationSequence,
                             onSettings = { tab = 3 },
                             onSelectLocation = { scope.launch { scroll.animateScrollTo(0) } })
                         2 -> Phones(state, model)
                         3 -> {
+                            Panel("Background updates") {
+                                Toggle(if (state.settings.role == Role.SHARER) "Sharing" else "Receive in background",
+                                    enabledRole == state.settings.role, { enabled -> if (enabled) model.start() else model.pause() })
+                                Text(if (state.settings.role == Role.SHARER)
+                                    "On by default after connecting a caregiver. Shares only your selected features, including while this app is closed. Turn off to pause sharing."
+                                    else "On by default after connecting a sharing phone. Receives updates while this app is closed. Turn off to receive only while the app is open.")
+                                Text("A notification stays visible while active. A pause stays in effect until you turn this switch on again.")
+                            }
                             UpdateSettings(checkingUpdate, updateResult, updates::checkForUpdates)
                             if (state.settings.role == Role.SHARER) {
-                                SharingSettings(state, running, telegramStatus, model)
+                                SharingSettings(state, sharingEnabled, telegramStatus, model)
                             } else Panel("Caregiver mode") {
                                 Text("This phone only receives family updates. It does not collect its own battery, wearable, location, unlock activity or SMS.")
-                                Text("Updates sync while this app is open. A connection invitation can stay active for up to 5 minutes.")
+                                Text("Background updates start after connecting a sharing phone. A connection invitation can stay active for up to 5 minutes.")
                             }
+                            BackgroundSettings(state, model)
                             Panel("Privacy and reliability") {
-                                Text("History stays on these phones for up to 7 days, capped at 10,000 events per source. Updates shows the latest 100 events.")
+                                Text("History stays on these phones for up to 7 days, capped at 10,000 events per source. The daily summary groups retained records by type. Open full history to filter and load earlier updates.")
                                 Text("The Location map shows up to 1,000 retained fixes per phone. Map tiles come from OpenStreetMap; the tile service sees your IP address and the map areas you view.")
                                 Text("Wearable readings require the same updated SeniorLink version on both phones. Bluetooth collection works only within range; missed readings cannot be recovered later.")
                                 Text("iroh encrypts connections end to end. Public discovery and relays may see connection metadata, not message contents.")
-                                Text("Android can stop the sharing service. After reboot or force-stop, open SeniorLink on the sharing phone and tap Start.")
+                                Text("Enabled sharing and background receiving resume after interruptions or reboot when Android allows. Sleep and network restrictions can delay updates. After Android Force stop, reopen SeniorLink. Pause in SeniorLink keeps background work off until you enable it again.")
                                 OutlinedButton(onClick = {
                                     context.startActivity(Intent(AndroidSettings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}")))
                                 }) { Text("Android app settings") }
                             }
                         }
                         4 -> WearableContent(state, wearableState, onSettings = { tab = 3 },
-                            selectedSource = updatesSource, onSelectSource = { updatesSource = it })
+                            selectedSource = updatesSource, onSelectSource = selectSource)
                     }
                 }
             }
         }
     }
+    ActivityDetails(state, activity, summarySource, model.activityBrowser) { stored ->
+        model.inspectLocation(stored)
+        locationSource = stored.source
+        locationSequence = stored.event.sequence
+        model.activityBrowser.close()
+        tab = 1
+    }
     ConnectionDialog(model)
-    if (state.ready && state.message == null && pairingState.step == PairingStep.IDLE) {
+    if (state.ready && state.message == null && pairingState.step == PairingStep.IDLE && !activity.request.showing) {
         availableUpdate?.let { UpdateDialog(it, updates::dismiss) }
     }
     state.message?.let { text ->
         AlertDialog(onDismissRequest = { model.message(null) }, title = { Text("SeniorLink") },
             text = { Text(text) }, confirmButton = { TextButton(onClick = { model.message(null) }) { Text("OK") } })
+    }
+}
+
+@Composable
+private fun BackgroundSettings(state: ScreenState, model: MainViewModel) {
+    val context = LocalContext.current
+    val power = remember(context) { context.getSystemService(PowerManager::class.java) }
+    var exempt by remember { mutableStateOf(power.isIgnoringBatteryOptimizations(context.packageName)) }
+    var backgroundLocation by remember { mutableStateOf(false) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        exempt = power.isIgnoringBatteryOptimizations(context.packageName)
+        backgroundLocation = Build.VERSION.SDK_INT < 29 || ContextCompat.checkSelfPermission(context,
+            Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED
+    }
+    fun openSettings(intent: Intent) {
+        try { context.startActivity(intent) }
+        catch (_: Exception) { model.message("Open Android Settings, then Apps → SeniorLink, to review battery and location permissions.") }
+    }
+    Panel("Background reliability and battery") {
+        Text("Android can delay updates during sleep. SeniorLink keeps saved history and reconnects when it can.")
+        Text(if (exempt) "Battery optimization exemption is enabled." else "Android battery optimization is enabled and may delay connections.")
+        Text("Allowing background operation can improve availability and use more battery. Check Android's Battery → App battery usage after an overnight run.")
+        if (!exempt) OutlinedButton(onClick = {
+            openSettings(Intent(AndroidSettings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:${context.packageName}")))
+        }) { Text("Allow background operation") }
+        OutlinedButton(onClick = { openSettings(Intent(AndroidSettings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) }) {
+            Text("Battery optimization settings")
+        }
+        if (state.settings.role == Role.SHARER && state.settings.location && Build.VERSION.SDK_INT >= 29) {
+            Text(if (backgroundLocation) "Location may resume after reboot with your existing location-sharing choice."
+                else "To resume location after reboot without opening SeniorLink, optionally choose Permissions → Location → Allow all the time in Android app settings. Other enabled features can resume without this permission.")
+            if (!backgroundLocation) OutlinedButton(onClick = {
+                openSettings(Intent(AndroidSettings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}")))
+            }) { Text("Location permissions") }
+        }
     }
 }
 
@@ -235,7 +270,7 @@ private fun SharingSettings(state: ScreenState, running: Boolean, telegramStatus
     var draft by remember(state.settings) { mutableStateOf(state.settings) }
     var token by remember { mutableStateOf("") }
     Panel("Choose what to share") {
-        if (running) Text("Pause sharing before editing settings.")
+        if (running) Text("Turn off Sharing above before editing, then save and turn it back on.")
         Toggle("Share phone battery", draft.phoneBattery, { draft = draft.copy(phoneBattery = it) }, !running)
         Text("Share this phone’s battery percentage and charging state about every 5 minutes while sharing is active.")
         Toggle("Observe phone unlocks", draft.unlock, { draft = draft.copy(unlock = it) }, !running)
@@ -270,11 +305,11 @@ private fun SharingSettings(state: ScreenState, running: Boolean, telegramStatus
     Button(onClick = { model.save(draft, token); token = "" }, enabled = !running, modifier = Modifier.fillMaxWidth()) {
         Text("Save settings")
     }
-    Text("Save first, then go to Updates and tap Start sharing. Android will ask for permissions only for selected features.")
+    Text("Save your changes, then turn on Sharing above. Android will ask for a notification permission and any permissions needed by your selected features.")
 }
 
 @Composable
-private fun EventCard(stored: StoredEvent, peers: List<Peer>, onLocation: () -> Unit) {
+internal fun EventCard(stored: StoredEvent, peers: List<Peer>, onLocation: () -> Unit) {
     val event = stored.event
     Panel(when (event.kind) {
         Kind.PHONE_BATTERY -> "Phone battery"

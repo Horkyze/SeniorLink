@@ -10,6 +10,9 @@
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
@@ -44,11 +47,19 @@
         <service
             android:name=".monitor.MonitorService"
             android:exported="false"
+            android:stopWithTask="false"
             android:foregroundServiceType="location|specialUse|connectedDevice">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-                android:value="User-enabled, visible senior safety monitoring and encrypted catch-up sharing with locally approved family phones." />
+                android:value="User-enabled, visible family check-in collection and encrypted availability on the sharing phone, or ongoing receipt of approved family updates on caregiver phones. Both roles can pause in the notification." />
         </service>
+        <service android:name=".monitor.RecoveryJob" android:exported="true" android:permission="android.permission.BIND_JOB_SERVICE" />
+        <receiver android:name=".monitor.RecoveryReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
         <receiver
             android:name=".monitor.SmsReceiver"
             android:exported="true"

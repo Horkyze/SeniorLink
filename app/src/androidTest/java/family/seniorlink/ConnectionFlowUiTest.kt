@@ -1,13 +1,17 @@
 package family.seniorlink
 
+import android.Manifest
+import android.os.Build
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.lifecycle.ViewModelProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.rule.GrantPermissionRule
 import computer.iroh.SecretKey
 import family.seniorlink.core.*
 import family.seniorlink.data.Store
 import family.seniorlink.pairing.*
+import family.seniorlink.monitor.MonitorService
 import kotlinx.coroutines.*
 import org.junit.Assert.*
 import org.junit.Assume.assumeTrue
@@ -20,6 +24,9 @@ import java.util.UUID
 @RunWith(AndroidJUnit4::class)
 class ConnectionFlowUiTest {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
+    @get:Rule val permissions = GrantPermissionRule.grant(
+        *if (Build.VERSION.SDK_INT >= 33) arrayOf(Manifest.permission.POST_NOTIFICATIONS) else emptyArray(),
+    )
 
     @Test fun incomingRequestAppearsWithoutRescanAndBothPhonesFinishAfterOneConfirmation() {
         val app = compose.activity.application as SeniorApp
@@ -30,6 +37,7 @@ class ConnectionFlowUiTest {
         if (app.store.settings.role == Role.UNSET) compose.onNodeWithText("Share my information").performClick()
         compose.waitUntil(10_000) { app.store.settings.role != Role.UNSET }
         assumeTrue(app.store.settings.role == Role.SHARER)
+        val defaultNotChosen = !app.getSharedPreferences("background-session", 0).contains("role")
         compose.onNodeWithText("Phones").performClick()
         val model = ViewModelProvider(compose.activity)[MainViewModel::class.java]
         var lastInvitation = ""
@@ -54,6 +62,7 @@ class ConnectionFlowUiTest {
                         compose.onNodeWithText(code).assertExists()
                         assertFalse(app.store.approved(key.publicId))
                         assertTrue(store.peers().isEmpty())
+                        if (defaultNotChosen) assertFalse(MonitorService.running.value)
                         compose.activityRule.scenario.recreate()
                         compose.onNodeWithText(code).assertExists()
                         compose.onNodeWithText(if (accept) "Codes match — connect" else "Codes don't match").performClick()
@@ -63,6 +72,10 @@ class ConnectionFlowUiTest {
                         }
                         assertEquals(accept, app.store.approved(key.publicId))
                         assertEquals(accept, store.approved(app.publicId))
+                        if (defaultNotChosen) {
+                            if (accept) compose.waitUntil(10_000) { MonitorService.running.value }
+                            else assertFalse(MonitorService.running.value)
+                        }
                         compose.onNodeWithText("Done").performClick()
                     } finally {
                         runBlocking { remoteScope.coroutineContext[Job]!!.cancelAndJoin() }
@@ -72,6 +85,7 @@ class ConnectionFlowUiTest {
             }
         } finally {
             compose.runOnUiThread { model.pairing.reset() }
+            if (defaultNotChosen) compose.runOnUiThread { MonitorService.pause(app) }
         }
     }
 }

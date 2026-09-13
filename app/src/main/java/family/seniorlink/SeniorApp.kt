@@ -8,8 +8,14 @@ import family.seniorlink.core.Role
 import family.seniorlink.data.Secrets
 import family.seniorlink.data.Store
 import family.seniorlink.monitor.MonitorService
+import family.seniorlink.monitor.BackgroundSession
+import family.seniorlink.net.CaregiverReceiver
+import family.seniorlink.net.IrohSync
+import family.seniorlink.net.networkWindows
+import family.seniorlink.net.whileAvailable
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 
 class SeniorApp : Application() {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -21,6 +27,28 @@ class SeniorApp : Application() {
         private set
     lateinit var secrets: Secrets
         private set
+    lateinit var backgroundSession: BackgroundSession
+        private set
+    internal val caregiverReceiver by lazy {
+        CaregiverReceiver(scope) { pollMs ->
+            while (currentCoroutineContext().isActive) {
+                try {
+                    networkWindows(this).whileAvailable(
+                        waiting = { peerStatus.value = store.peers().associate { it.id to "Waiting for network or Android sleep to end — showing saved updates" } },
+                    ) {
+                        while (currentCoroutineContext().isActive) {
+                            try {
+                                IrohSync.receive(identity, store, pollMs) { peer, status -> peerStatus.update { it + (peer to status) } }
+                            } catch (e: CancellationException) { throw e }
+                            catch (_: Exception) { peerStatus.value = store.peers().associate { it.id to "Network unavailable — retrying" } }
+                            delay(15_000)
+                        }
+                    }
+                } catch (e: CancellationException) { throw e }
+                catch (_: Exception) { delay(15_000) }
+            }
+        }
+    }
     var initializationError: String? = null
         private set
     val identity: ByteArray by lazy {
@@ -34,6 +62,7 @@ class SeniorApp : Application() {
         super.onCreate()
         store = Store(this)
         secrets = Secrets(this)
+        backgroundSession = BackgroundSession(this)
         try {
             IrohAndroid.installAndroidContext(this)
         } catch (_: Throwable) {
@@ -41,9 +70,10 @@ class SeniorApp : Application() {
         }
     }
 
-    fun record(event: Event) {
+    fun record(event: Event, session: Any? = MonitorService.sessionToken) {
         synchronized(store) {
-            if (MonitorService.running.value && store.settings.role == Role.SHARER && store.settings.allows(event.kind)) {
+            if (session != null && session === MonitorService.sessionToken && MonitorService.running.value &&
+                backgroundSession.enabled(Role.SHARER) && store.settings.role == Role.SHARER && store.settings.allows(event.kind)) {
                 try {
                     store.append(publicId, event, System.currentTimeMillis())
                 } catch (_: IllegalArgumentException) {

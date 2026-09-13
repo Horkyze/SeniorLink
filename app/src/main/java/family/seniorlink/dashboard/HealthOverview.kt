@@ -1,6 +1,7 @@
 package family.seniorlink.dashboard
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.selection.selectable
@@ -144,14 +145,14 @@ internal fun HeartRateCard(snapshot: WearableSnapshot, now: Long) {
 }
 
 @Composable
-private fun HeartGraph(points: List<HeartPoint>, start: Long, end: Long, accent: Color) {
+internal fun HeartGraph(points: List<HeartPoint>, start: Long, end: Long, accent: Color, height: Int = 124, labels: Boolean = true) {
     val low = (floor(points.minOf { it.bpm } / 10) * 10 - 10).coerceAtLeast(0.0)
     val high = maxOf(ceil(points.maxOf { it.bpm } / 10) * 10, low + 20)
     val grid = Calm.Line
     val description = "Heart-rate graph, ${points.size} saved readings. " +
         "${formatTime(points.first().at)} to ${formatTime(points.last().at)}. " +
         "Lowest ${points.minOf { it.bpm }.roundToInt()}, highest ${points.maxOf { it.bpm }.roundToInt()} beats per minute."
-    Row(Modifier.fillMaxWidth().height(124.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(Modifier.fillMaxWidth().height(height.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Column(Modifier.fillMaxHeight(), verticalArrangement = Arrangement.SpaceBetween) {
             Text(high.toInt().toString(), style = MaterialTheme.typography.labelSmall)
             Text(((high + low) / 2).toInt().toString(), style = MaterialTheme.typography.labelSmall)
@@ -188,6 +189,7 @@ private fun HeartGraph(points: List<HeartPoint>, start: Long, end: Long, accent:
             }
         }
     }
+    if (!labels) return
     val fullDay = end - start >= 86_400_000
     val formatter = remember(fullDay) {
         DateTimeFormatter.ofPattern(if (fullDay) "d MMM\nHH:mm" else "HH:mm").withZone(ZoneId.systemDefault())
@@ -200,7 +202,8 @@ private fun HeartGraph(points: List<HeartPoint>, start: Long, end: Long, accent:
 }
 
 @Composable
-internal fun DeviceBatteries(state: ScreenState, source: String?, snapshot: WearableSnapshot, now: Long) {
+internal fun DeviceBatteries(state: ScreenState, source: String?, snapshot: WearableSnapshot, now: Long,
+    compact: Boolean = false, onPhone: (() -> Unit)? = null, onWatch: (() -> Unit)? = null) {
     val phone = state.phoneBatteries.filter { it.source == source &&
         (state.settings.role == Role.SHARER && source == state.publicId || state.peers.any { peer -> peer.id == source }) }
         .maxByOrNull { it.event.occurredAt }?.event
@@ -214,9 +217,9 @@ internal fun DeviceBatteries(state: ScreenState, source: String?, snapshot: Wear
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val stacked = maxWidth < 300.dp || fontScale > 1.3f
         val cards: @Composable (Modifier) -> Unit = { modifier ->
-            BatteryCard("Phone", R.drawable.ic_phone_outline, phone?.phoneBattery?.percent, phone?.occurredAt, now, phoneStatus, phoneMissing, modifier)
+            BatteryCard("Phone", R.drawable.ic_phone_outline, phone?.phoneBattery?.percent, phone?.occurredAt, now, phoneStatus, phoneMissing, modifier, compact, onPhone)
             BatteryCard("Smartwatch", R.drawable.ic_watch_outline, watch?.value?.roundToInt(), watch?.receivedAt, now, "",
-                "No battery reading. Some watches do not share battery over Bluetooth.", modifier)
+                "No battery reading. Some watches do not share battery over Bluetooth.", modifier, compact, onWatch)
         }
         if (stacked) Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { cards(Modifier.fillMaxWidth()) }
         else Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) { cards(Modifier.weight(1f)) }
@@ -224,13 +227,26 @@ internal fun DeviceBatteries(state: ScreenState, source: String?, snapshot: Wear
 }
 
 @Composable
-private fun BatteryCard(title: String, icon: Int, percent: Int?, at: Long?, now: Long, detail: String, missing: String, modifier: Modifier) {
+private fun BatteryCard(title: String, icon: Int, percent: Int?, at: Long?, now: Long, detail: String, missing: String, modifier: Modifier,
+    compact: Boolean = false, onClick: (() -> Unit)? = null) {
     val low = percent != null && percent <= 20
     val color = if (low) Calm.Low else Calm.Green
-    Card(modifier, shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(
+    Card(if (onClick == null) modifier else modifier.clickable(onClick = onClick), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(
         containerColor = if (low) Calm.LowBackground else Color.White, contentColor = Calm.Ink,
     )) {
         Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (compact) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(painterResource(icon), null, Modifier.size(20.dp), tint = color)
+                    Text(title, style = MaterialTheme.typography.bodyMedium)
+                }
+                Text(percent?.let { "$it%" } ?: "Unknown", style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold, color = color)
+                Text(if (at != null) "Recorded ${formatReadingTime(at, now)}" else "No saved reading",
+                    style = MaterialTheme.typography.bodySmall, color = Calm.Muted)
+                if (low) Text("Low battery", style = MaterialTheme.typography.labelMedium, color = Calm.Low)
+                if (at != null && now - at > 600_000) Text("No recent reading", style = MaterialTheme.typography.bodySmall, color = Calm.Muted)
+            } else {
             Icon(painterResource(icon), null, Modifier.size(21.dp), tint = color)
             Text(title, style = MaterialTheme.typography.bodyMedium)
             Text(percent?.let { "$it%" } ?: "Unknown", fontSize = if (percent == null) 24.sp else 32.sp,
@@ -243,6 +259,7 @@ private fun BatteryCard(title: String, icon: Int, percent: Int?, at: Long?, now:
                     color = if (low) Calm.Low else Calm.Muted)
                 if (at != null && now - at > 600_000) Text("No recent reading", style = MaterialTheme.typography.labelMedium, color = Calm.Muted)
             } else Text(missing, style = MaterialTheme.typography.bodySmall, color = Calm.Muted)
+            }
         }
     }
 }

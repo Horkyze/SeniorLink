@@ -147,7 +147,7 @@ class WearableMonitor(
                     currentCoroutineContext().ensureActive()
                     update { it.copy(connected = false, status = "Wearable connection timed out; retrying") }
                 } catch (_: SecurityException) {
-                    update { it.copy(connected = false, status = "Bluetooth permission was revoked. Pause sharing, grant permission, and start again.") }
+                    update { it.copy(connected = false, status = "Bluetooth permission was revoked. Turn off Sharing in Settings, grant permission, and turn Sharing back on.") }
                     return
                 } catch (e: Exception) {
                     update { it.copy(connected = false, status = if (e is BleOperationException) "${e.message}. Retrying…"

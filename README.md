@@ -6,46 +6,56 @@ Caregivers open the same app on their own phones to see check-ins, recent phone
 activity, locations, selected SMS and readings from compatible wearables. Updates
 travel over an encrypted phone-to-phone connection; you don't need to run a server.
 
-**[Download the Android app](https://github.com/Horkyze/SeniorLink/releases/tag/v0.1.8)**
-· [Release notes](docs/releases/v0.1.8.md)
+**[Download the Android app](https://github.com/Horkyze/SeniorLink/releases/tag/v0.1.9)**
+· [Release notes](docs/releases/v0.1.9.md)
 · [Wearable setup](docs/wearables.md)
 · [Build from source](#building-and-contributing)
 
 For example, your grandfather can share an “I'm okay” check-in and readings from a
 nearby Bluetooth band. His phone saves the updates, and your phone catches up when
-you open SeniorLink while his app is sharing and reachable. Other approved family
-members can catch up independently on their own phones.
+both apps are reachable and sharing/background receiving is enabled. Opening
+SeniorLink also receives updates. Other approved family members can catch up
+independently on their own phones.
 
 This is an early **family pilot**, not a medical device or emergency-response
 service. It does not send emergency alerts or guarantee continuous monitoring.
 
-## What's new in 0.1.8
+## What's new in 0.1.9
 
-Update prompts now offer **View release**, which opens the GitHub page for the
-newest detected version. Download the APK from **Assets**, then open it to update
-SeniorLink. This avoids starting a direct APK download that some browsers block.
-The same release-page link is available to copy if no browser can open it.
+Sharing and background receiving start automatically after an approved phone
+connection, with a visible notification and restart requests after interruptions
+or reboot. Small toggles in **Settings → Background updates** let you pause them.
+A saved pause stays in effect after reconnecting or adding another phone. Existing
+paired installations without a saved background preference adopt the default
+when opened. Individual collection features keep their own selected settings.
+
+The **Updates** dashboard now shows a daily summary: compact latest readings and
+batteries, followed by daily groups for check-ins, wearable updates, location and
+phone activity. Messages appear when records are available. Tap a group for a
+preview sheet, or **Open full history** for date/type filters and **Load earlier**.
+Counts include all retained records for the selected phone and day.
 
 ### Dashboard and batteries
 
-The **Calm** design uses soft green surfaces, a pink
-**heart-rate graph** with 1-hour and 24-hour views, and separate **phone battery**
-and **smartwatch battery** cards. The bottom navigation opens Updates, Location,
-Wearable, Phones and Settings. Larger text stacks the battery cards and wraps
-navigation into two rows.
+The **Calm** design uses soft green surfaces, a compact pink
+**heart-rate graph** for the last hour, and separate **phone battery** and
+**smartwatch battery** cards. The wearable group opens a chart for the selected
+day. The bottom navigation opens Updates, Location, Wearable, Phones and Settings.
+Larger text stacks the battery cards and wraps navigation into two rows.
 
 The graph uses the last recorded pulse from each two-minute summary, not an ECG.
 Missing readings stay missing; percentages and pulse readings keep their own times.
 
 To share phone battery, pause sharing, enable **Settings → Share phone battery**,
-save, and start sharing again. It is off by default and records the percentage and
-available charging state about every five minutes. Smartwatch battery appears when
+save, and turn **Settings → Sharing** back on. Phone-battery collection is off by
+default and records the percentage and available charging state about every five
+minutes. Smartwatch battery appears when
 the selected wearable exposes standard Bluetooth battery data; otherwise it shows
 **Unknown**. One wearable is selected per sharing phone; caregivers can switch
 between family phones. Physical Galaxy Fit3 battery support is still unverified.
 
-Version 0.1.8 uses sync protocol 3 and can sync with 0.1.7. All paired phones must
-use **0.1.7 or newer**; 0.1.6 and older cannot sync with these versions. The
+Version 0.1.9 uses sync protocol 3 and can sync with 0.1.7 and 0.1.8. All paired
+phones must use **0.1.7 or newer**; 0.1.6 and older cannot sync with these versions. The
 published APK uses the same signing key as earlier releases; update in place to
 preserve identity, pairing and history.
 
@@ -55,7 +65,7 @@ You need **Android 8.0 or newer** on the sharing phone and every caregiver phone
 Both roles use the same APK (the Android installation file).
 
 1. **Install SeniorLink on each phone.** Open the release page above, download
-   **SeniorLink-0.1.8-debug.apk** from **Assets**, and open it.
+   **SeniorLink-0.1.9-debug.apk** from **Assets**, and open it.
    Android may ask you to allow installation from the browser or file app.
 2. **Choose each phone's role.** Your family member chooses **Share my information**;
    everyone receiving updates chooses **I'm a caregiver**.
@@ -65,24 +75,35 @@ Both roles use the same APK (the Android installation file).
 4. **Confirm together.** Compare the four-character code on both phones. If it
    matches, tap **Codes match — connect** on the sharing phone. Repeat for each
    caregiver. Approval gives access to retained history for enabled features while
-   sharing is on.
-5. **Choose what to share.** On the sharing phone, open **Settings**, select the
-   features and tap **Save settings**. Then open **Updates → Start sharing**,
-   grant the requested permissions and tap Start again.
+   sharing is on. Background updates start automatically after approval; grant
+   the requested Android permissions to continue.
+5. **Choose what to share.** On the sharing phone, open **Settings**, turn off
+   **Sharing**, select features and tap **Save settings**, then turn **Sharing**
+   back on. Android asks for permissions needed by selected features; granting
+   them continues startup automatically.
 6. **Try a check-in.** Tap **I'm okay — check in** on the sharing phone. Open the
    caregiver app to see it arrive.
 
-A notification stays visible while sharing. Use **Pause sharing** in the app or
-notification to stop collecting and sharing. Pause before changing settings.
+A notification stays visible while sharing, including when the app screen is
+closed. Sharing remains enabled across ordinary process interruptions and
+reboot; Android decides when restart is allowed. Turn off **Settings → Sharing**
+or use the notification's **Pause sharing** action to stop collecting and sharing.
+The pause stays in effect until you turn Sharing on again, even after another
+phone connects. Pause before changing collection settings.
 Removing a caregiver stops future access, but cannot erase updates already received.
 
-**Updating an existing installation?** Install 0.1.8; it can sync with 0.1.7, but
-paired phones running 0.1.6 or older must also be updated. The published
-APK uses the same signing key as versions 0.1.0–0.1.7, so install it as an update
+On caregiver phones, **Settings → Receive in background** turns on by default
+when a sharing phone is connected. Turn it off to pause background receiving;
+opening the caregiver app still fetches updates. This does not collect any of
+the caregiver's own information.
+
+**Updating an existing installation?** Install 0.1.9; it can sync with 0.1.7 and
+0.1.8, but paired phones running 0.1.6 or older must also be updated. The published
+APK uses the same signing key as versions 0.1.0–0.1.8, so install it as an update
 without uninstalling to keep pairing and history. Versions 0.1.3 onward check for
 updates when opened; 0.1.5 onward also offers **Settings → App updates → Check for updates**.
 If an older version's direct download is blocked, open the release page above
-manually. After installing 0.1.8, future update prompts open the release page.
+manually. Update prompts in 0.1.8 and newer open the release page.
 The release includes `SHA256SUMS` if you want to verify the download.
 
 ## What can be shared?
@@ -99,14 +120,16 @@ updates; it does not monitor the caregiver's own phone or wearable.
 | **Selected SMS** | Messages from an exact list of allowed senders. Message bodies are off by default. |
 | **Wearable readings** | Supported Bluetooth measurements, receipt times and summaries. Available data depends on the device. |
 
-Open **Updates** for recent activity, **Location** for the map and **Wearable** for
-wearable readings. Always check the timestamps: saved information may be old.
+Open **Updates** for the daily summary, **Location** for the map and **Wearable**
+for wearable readings. Select a family phone and date, then tap a daily group to
+inspect recorded updates. Tap a record to expand its details. Always check the
+timestamps: saved information may be old.
 
 ### Connect a wearable
 
 On the sharing phone, pause sharing and open **Settings → Bluetooth wearable →
 Choose wearable**. Select the nearby band, enable **Share wearable readings**,
-save and start sharing again. Allow Nearby devices permission when asked; Android
+save and turn **Settings → Sharing** back on. Allow Nearby devices permission when asked; Android
 8–11 require Location permission and the system Location setting for scanning.
 
 The band sends readings directly to the sharing phone over Bluetooth. The phone
@@ -138,20 +161,43 @@ retries can occasionally duplicate a Telegram post.
 ## When will updates arrive?
 
 - **Both phones must be reachable at the same time.** The sharing app must be
-  running, and the caregiver app checks for updates while open. A caregiver cannot
-  remotely wake a stopped sharing app. There are no closed-app push alerts.
+  sharing, and the caregiver app must be open or have background updates enabled.
+  Caregivers check about every 15 seconds while open and every minute in the
+  background when Android permits execution. A caregiver cannot remotely activate
+  sharing or wake a stopped phone. There are no server push alerts.
 - **Missed deliveries can catch up.** Collected history stays on the phones for up
   to seven days, capped at 10,000 events per source. Each caregiver catches up
   independently. Events that were never collected cannot be recovered.
-- **Android can interrupt sharing.** After a reboot or force-stop, open SeniorLink
-  on the sharing phone and tap Start again. Battery restrictions, revoked
-  permissions or disabled Bluetooth/location can also interrupt collection.
+- **Android can interrupt background work.** Enabled sessions request system
+  restart after a process interruption and resume after reboot or app replacement
+  when allowed. A periodic recovery job is a best-effort fallback, not an exact
+  timer. Pause stays off after restart. Android Force stop requires reopening the
+  app; the recovery job also respects observed Android user stops. Some Android
+  versions/manufacturers classify a task dismissal or update as a user stop, so
+  reopening may still be necessary. Revoked required permissions pause the session.
+- **Sleep and offline periods delay delivery.** Network work waits through Doze
+  and blocked/offline connections, then reconnects on a usable network window.
+  Both devices must have an overlapping window. SeniorLink does not hold an
+  always-on CPU wake lock or manufacture readings that were missed during sleep.
+- **Location after reboot needs extra permission.** Without Android's optional
+  **Allow all the time** location grant, fresh background recovery resumes other
+  enabled features and defers location until SeniorLink is opened. Normal sharing
+  started while the app is visible can continue location with foreground location
+  permission. Settings explains the optional grant; location sharing must still
+  be enabled separately.
 - **Offline views show saved data.** Read the recorded times and connection status.
   Map tiles need internet for uncached areas; saved coordinates remain readable.
 
 Test behavior and battery use on your family's actual devices before using it for
 routine check-ins. See the [real-phone acceptance checklist](docs/acceptance.md)
 and [completed verification](docs/verification.md).
+
+**Settings → Background reliability and battery** shows battery-optimization
+status and offers Android's background-operation exemption dialog. This can
+improve availability and use more battery; it does not remove every restriction.
+Check Android's per-app battery usage and compare similar overnight runs with
+sharing on and paused. Optional phone-battery sharing reports the whole phone's
+percentage and charging state, not SeniorLink's own energy consumption.
 
 ## Privacy and control
 
@@ -176,7 +222,7 @@ rendered on the phone. Maps need no API key or Google Play Services. See the
 
 | Problem | What to try |
 | --- | --- |
-| No updates arrive | Check that sharing is started, both phones are online, the caregiver app is open and all phones run 0.1.7 or newer. Check permissions and battery restrictions on the sharing phone. |
+| No updates arrive | Check Settings → Sharing on the sharing phone and Settings → Receive in background on the caregiver. Both phones must be online; a caregiver with background updates paused can receive while open. Open SeniorLink on both phones if Android restricted restart. Check permissions, battery restrictions and compatible app versions. |
 | Camera is unavailable for pairing | Use **Copy invitation / Share invitation** on the sharing phone and **Use a shared invitation instead** on the caregiver. Compare the verification code through a trusted conversation. |
 | Pairing expired or the codes differ | Start a new invitation on the sharing phone and keep both apps open. Invitations expire after five minutes. |
 | Wearable is connected but has no readings | Enable measurement on the band, check skin contact and inspect **Wearable → Available Bluetooth data**. Follow the [device checklist](docs/wearables.md#fit3-expectations-and-verification). |
@@ -232,7 +278,7 @@ also be restored without an Android toolchain using Python 3:
 python3 scripts/unpack-pilot.py
 ```
 
-This reconstructs and checksum-verifies `dist/SeniorLink-0.1.8-debug.apk`.
+This reconstructs and checksum-verifies `dist/SeniorLink-0.1.9-debug.apk`.
 The archive parts are not themselves installable. Full APKs, signing material and
 build output remain ignored. CI builds an APK and uploads test reports; it does
 not publish a release automatically.

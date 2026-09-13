@@ -26,7 +26,7 @@ class PhoneBatteryServiceTest {
         compose.waitUntil(15_000) { app.initializationError == null && app.publicId.isNotBlank() }
         val old = app.store.settings
         assertTrue(old.role == Role.UNSET || old.role == Role.SHARER)
-        val intent = Intent(app, MonitorService::class.java)
+        val intent = Intent(app, MonitorService::class.java).setAction(MonitorService.ACTION_START)
         val baseline = old.copy(role = Role.SHARER, phoneBattery = false, wearable = false, location = false, sms = false, telegram = false)
         try {
             app.store.updateSettings(baseline, app.publicId)
@@ -51,7 +51,7 @@ class PhoneBatteryServiceTest {
     }
 
     private fun stop(app: SeniorApp, intent: Intent) {
-        compose.runOnUiThread { MonitorService.running.value = false; app.stopService(intent) }
+        compose.runOnUiThread { MonitorService.pause(app) }
         compose.waitUntil(10_000) { app.monitorStatus.value.startsWith("Monitoring paused") }
     }
 }

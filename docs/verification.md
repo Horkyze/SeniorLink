@@ -1,5 +1,205 @@
 # Verification
 
+## Release packaging — 0.1.9 (13 September 2026)
+
+- Version 0.1.9 (version code 10) passes all **40 core and 65 Android JVM tests**,
+  with no failures or skips. Debug and instrumentation APK builds pass. Lint
+  reports zero errors and 17 warnings.
+- **Six final-APK instrumentation tests pass**, with no skips, on an isolated
+  Android 17 ARM64 emulator with 16 KB pages: the daily-summary workflow, two
+  background recovery tests, caregiver background receiving over real iroh,
+  automatic sharing/check-in with Settings pause, and notification permission
+  denial followed by grant and automatic startup. Each class used a fresh
+  synthetic installation. Earlier source-build checks below cover the dashboard
+  at 2× text size and adb-driven process, reboot, user-stop and Doze scenarios.
+- Downloaded the published 0.1.8 APK and verified its SHA-256 against its checksum
+  manifest and GitHub's asset digest. Both APK signatures verify with certificate
+  SHA-256 `7e4f9088dfb6e1a7175ed42dc7a9d1f32717a21d28165cead7b6adfa04cbc302`.
+  Installing 0.1.9 over 0.1.8 with `adb install -r` succeeds. This release-stage
+  install check used a fresh fixture, not a physical family's existing history.
+- All 12 bundled native libraries are byte-identical to published 0.1.8. Native
+  ABI and 16 KB ELF/ZIP alignment checks pass. Six archive parts reconstruct the
+  APK in an isolated temporary directory; the restored bytes match the tested
+  APK. SHA-256:
+  `8a54d3858ebcdc1235b99f9e8d95b1545ad9e6b8d17d71b739ab532cc49440ae`.
+
+Commands included:
+
+```sh
+. ./scripts/env.sh
+./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest
+python3 scripts/verify-apk.py
+adb -s emulator-5556 install -r app/build/outputs/apk/debug/app-debug.apk
+adb -s emulator-5556 install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+# Each class ran separately on a fresh synthetic installation.
+adb -s emulator-5556 shell am instrument -w -r -e class family.seniorlink.DailySummaryUiTest -e seniorlink.dashboardFixture true family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+adb -s emulator-5556 shell am instrument -w -r -e class family.seniorlink.BackgroundRecoveryServiceTest family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+adb -s emulator-5556 shell am instrument -w -r -e class family.seniorlink.CaregiverBackgroundServiceTest -e seniorlink.caregiverFixture true family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+adb -s emulator-5556 shell am instrument -w -r -e class family.seniorlink.MonitoringUiTest family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+adb -s emulator-5556 shell am instrument -w -r -e class family.seniorlink.DefaultSharingPermissionTest family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+python3 scripts/package-pilot.py
+# Also ran unpack-pilot.py with only the manifest and six parts in a temporary copy.
+git diff --check
+```
+
+Protocol 3 remains compatible with 0.1.7 and 0.1.8. Physical-device battery drain,
+manufacturer-specific recovery, natural overnight reliability and wearable
+compatibility remain on the [device checklist](acceptance.md).
+
+## Daily summary dashboard — source build (13 September 2026)
+
+- Implemented selected concept B: compact latest readings and device batteries,
+  daily counts grouped by update type, a four-record preview sheet, and full
+  history with date/type filters and explicit 40-record loading. The dashboard
+  no longer appends the mixed event feed or loads its latest 100 records.
+- Counts query all retained records for the selected source and recorded local
+  day. Six new storage tests cover busy feeds, source/day isolation, stable
+  pagination with equal timestamps, expiry/withdrawal, 23/25-hour daylight-saving
+  days, revocation/reapproval, and lookup of locations outside the latest 1,000.
+- All **40 core and 65 Android JVM tests pass**. Debug and instrumentation APK
+  builds pass. Lint has zero errors and 17 warnings. Native ABI/16 KB alignment
+  checks and `git diff --check` pass.
+- **Seven distinct Android instrumentation tests pass**, with eight executions:
+  the new daily-summary workflow at both 1× and 2× text size, four existing
+  health/navigation checks, automatic sharing with Settings pause, and permission
+  denial followed by automatic startup after grant. Each class ran on a fresh
+  isolated Android 17 emulator installation; no tests were skipped in these runs.
+- The daily-summary workflow checks more than 100 same-day events, group counts,
+  the wearable preview/chart, filtering, loading 40 then 80 unique records without
+  losing the visible position, opening a saved fix on the map, day changes,
+  family selection across recreation, and removal of the selected peer.
+- Normal and large-text views were visually reviewed. Battery cards stack and
+  navigation wraps at large text; controls and history remain scrollable. The
+  fixture asserts secure window flags and renders its own synthetic Android view
+  trees for previews, rather than disabling production screenshot protection.
+  Preview renders are linked from the [selected design](design/dashboard-concepts/README.md).
+- Debug APK SHA-256:
+  `2e5550f7bc3ed7d80b6d0d1ed181b26a8f3df29fd6bec7a870c0f60d3fc1db63`.
+
+Commands included:
+
+```sh
+. ./scripts/env.sh
+./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest
+# Each class used a fresh synthetic installation on the isolated test emulator.
+adb -s emulator-5556 shell am instrument -w -r -e class family.seniorlink.DailySummaryUiTest -e seniorlink.dashboardFixture true family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+adb -s emulator-5556 shell settings put system font_scale 2.0
+# Repeat DailySummaryUiTest, then restore font_scale to 1.0.
+adb -s emulator-5556 shell am instrument -w -r -e class family.seniorlink.HealthOverviewUiTest family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+adb -s emulator-5556 shell am instrument -w -r -e class family.seniorlink.MonitoringUiTest family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+adb -s emulator-5556 shell am instrument -w -r -e class family.seniorlink.DefaultSharingPermissionTest family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+python3 scripts/verify-apk.py
+git diff --check
+```
+
+No physical family device or wearable was used. This change adds no collection,
+changes no background sampling interval, and preserves protocol 3, stored identity,
+pairing and history. No release was published.
+
+## Automatic background defaults and Settings controls — source build (13 September 2026)
+
+- An approved phone connection now enables sharing/background receiving by default.
+  Existing paired installations with no saved background choice adopt the default
+  when opened. A stored Pause or permission-denial pause survives further
+  connections and reopening. Optional collection settings remain unchanged.
+- Dashboard Start/Resume/Pause/Enable controls are replaced by small Settings
+  switches: **Sharing** on the sharing phone and **Receive in background** on
+  caregivers. Pairing screens explain the default before approval. Granting the
+  required Android permissions continues startup without a second tap.
+- All **40 core and 59 Android JVM tests pass**. New policy tests cover both roles,
+  no activation before approval, existing paired installations, and durable pauses
+  made before or after pairing. Lint has zero errors and 17 warnings.
+- **Six Android instrumentation tests pass** on an isolated Android 17 emulator:
+  automatic sharing/check-in and Settings pause across reopening/additional peers;
+  real notification-permission denial followed by grant and automatic startup;
+  real iroh pairing rejection/approval; two service recovery tests; and automatic
+  caregiver background delivery. Each class used a fresh synthetic installation
+  so the default checks ran rather than skipping an already configured session.
+- The caregiver test received a synthetic check-in over real iroh transport while
+  its activity was stopped, collected no local caregiver events, and retained its
+  Settings pause after recreation. Recovery tests verify deferred location and
+  visible resumption, saved-session restoration, and that Pause prevents recovery.
+- Debug and instrumentation APK builds, native ABI/16 KB alignment checks, and
+  `git diff --check` pass. Debug APK SHA-256:
+  `80cb1a1a504b93bee314466ed351161ce08392dbe7e3421b350f60c453058632`.
+
+Commands included:
+
+```sh
+. ./scripts/env.sh
+./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest
+# Each class ran separately on the isolated emulator with a fresh test installation.
+adb -s emulator-5556 shell am instrument -w -r -e class family.seniorlink.DefaultSharingPermissionTest family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+adb -s emulator-5556 shell am instrument -w -r -e class family.seniorlink.MonitoringUiTest family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+adb -s emulator-5556 shell am instrument -w -r -e class family.seniorlink.ConnectionFlowUiTest family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+adb -s emulator-5556 shell am instrument -w -r -e class family.seniorlink.BackgroundRecoveryServiceTest family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+adb -s emulator-5556 shell am instrument -w -r -e class family.seniorlink.CaregiverBackgroundServiceTest -e seniorlink.caregiverFixture true family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+python3 scripts/verify-apk.py
+git diff --check
+```
+
+These checks do not measure physical-device battery drain. Polling/collection
+intervals and Android restart limits are unchanged from the background-recovery
+source build below. Protocol 3, identity, pairing and stored history are preserved.
+No release was published.
+
+## Background recovery — source build (13 September 2026)
+
+- Start sharing and Enable background updates persist local authorization for the
+  selected role. The visible foreground service requests sticky recreation,
+  recovers from boot/app replacement when permitted, and schedules a best-effort
+  recovery job. Pause closes the collection gate and cancels recovery. Observed
+  Android user stops suppress automatic recovery until visible reopening.
+- All **40 core and 57 Android JVM tests pass**. New checks cover durable enable/
+  Pause state, user-stop suppression across process recreation, location restart
+  permission rules, a single caregiver receiver across screen/service handoffs,
+  slower background polling, and network validation/blocking/handover/idle changes.
+- **Eight distinct Android instrumentation tests pass** on an isolated Android 17
+  emulator: two background-service tests, monitoring UI, phone-battery service,
+  unavailable-wearable service, two native transport/storage tests, and caregiver
+  background delivery. The caregiver test receives a synthetic check-in over real
+  iroh discovery/transport with its activity stopped and verifies that it collects
+  no local caregiver events. Its fixture must be explicitly selected on an
+  isolated installation; it does not change a sharing installation's role.
+- Runtime location checks verify that a fresh recovery without background location
+  permission defers location, and visible reopening starts it without replacing
+  the collection session. They do not establish physical location accuracy.
+- Manual adb checks killed the app process without Force stop and observed a new
+  foreground-service process with the screen closed, for both roles. Reboot/
+  unlock recovery and Force stop followed by visible reopening were checked.
+  Android Active apps Stop suppressed the recovery job; reinstalling the APK in
+  place did not undo the persisted suppression.
+- Forced **deep and light Doze** deferred the sharing transport while leaving the
+  service active. Stepping into maintenance windows and exiting idle restored
+  endpoint readiness. These checks used adb and state-only service diagnostics;
+  they do not establish natural overnight timing or end-to-end delivery between
+  two independently sleeping physical phones. An initial reboot harness race was
+  corrected to wait for a changed kernel boot ID before testing post-boot state.
+- Core/JVM tests, lint, debug and instrumentation APK builds pass. Lint has zero
+  errors and 17 warnings, including the battery-exemption API's policy reminder.
+  The exemption remains a user-operated Android dialog for this family check-in
+  use case. All native ABIs and 16 KB ELF/ZIP alignment checks pass. Debug APK
+  SHA-256: `e6a86ed676da13d0a29eec8f61c3786a4d6583af5affbc18363dd039dd53cf85`.
+
+Commands included:
+
+```sh
+. ./scripts/env.sh
+./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest
+./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=family.seniorlink.BackgroundRecoveryServiceTest,family.seniorlink.MonitoringUiTest,family.seniorlink.PhoneBatteryServiceTest,family.seniorlink.WearableServiceTest,family.seniorlink.IrohDeviceTest
+./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=family.seniorlink.BackgroundRecoveryServiceTest
+# The next command used a separate, isolated caregiver fixture on the test emulator.
+adb -s emulator-5556 shell am instrument -w -r -e class family.seniorlink.CaregiverBackgroundServiceTest -e seniorlink.caregiverFixture true family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+adb -s emulator-5556 shell dumpsys activity service family.seniorlink/.monitor.MonitorService
+python3 scripts/verify-apk.py
+git diff --check
+```
+
+No physical family phone or wearable was used. Manufacturer task-killing behavior,
+Android 14/15-specific location recovery, natural overnight reliability and actual
+battery drain remain device checks in [acceptance.md](acceptance.md). This change
+does not alter protocol 3 or stored identity/history and does not publish a release.
+
 ## Release packaging — 0.1.8 (13 September 2026)
 
 - Version 0.1.8 (version code 9) passes the core/Android JVM checks: 40 core and

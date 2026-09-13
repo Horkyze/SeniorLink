@@ -71,7 +71,7 @@ fun LocationContent(
                     state.settings.role == Role.SHARER && !state.settings.location ->
                         "Turn on Share location in Settings, save, then start sharing to see your location here."
                     state.settings.role == Role.SHARER && !running ->
-                        "Tap Start sharing in Updates and allow location access. The map appears after Android supplies a location."
+                        "Turn on Sharing in Settings and allow location access. The map appears after Android supplies a location."
                     state.settings.role == Role.SHARER ->
                         "Waiting for Android to provide a location. Check that location is enabled in Android settings."
                     phones.isEmpty() -> "Connect a sharing phone in Phones to see its location and history here."

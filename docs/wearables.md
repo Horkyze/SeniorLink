@@ -21,14 +21,15 @@ Wearable → Bluetooth LE → sharing phone's local summaries → encrypted iroh
 4. Select the band by name and local Bluetooth address. Selection does not start
    a connection or change its bond. Enable **Share wearable readings**, then
    **Save settings**.
-5. On a Galaxy Fit3, enable continuous heart-rate measurement on the band. Open
-   **Updates → Start sharing** in SeniorLink. The existing visible service owns
+5. On a Galaxy Fit3, enable continuous heart-rate measurement on the band. Turn on
+   **Settings → Sharing**. The existing visible service owns
    Bluetooth collection and reconnects while sharing remains enabled.
 6. Open **Wearable** to see connection status, values and receipt timestamps. On a
    caregiver phone, open the same tab after synchronization. Each family member's
    data and each replacement band's data stay separate.
 
-**Pause sharing** immediately closes the collection permission gate and stops the
+Turning off **Settings → Sharing** (or using **Pause sharing** in the notification)
+immediately closes the collection permission gate and stops the
 connection. No scan or collection runs in caregiver mode. Disabling wearable
 sharing or selecting another band and saving removes retained wearable events
 and their queued Telegram messages on the sharing phone; previously delivered

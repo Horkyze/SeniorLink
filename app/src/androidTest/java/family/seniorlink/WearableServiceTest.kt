@@ -32,7 +32,7 @@ class WearableServiceTest {
         assertTrue(old.role == Role.UNSET || old.role == Role.SHARER)
         val settings = old.copy(role = Role.SHARER, sms = false, location = false, wearable = true,
             wearableAddress = "AA:BB:CC:DD:EE:FF", wearableName = "Synthetic unavailable band")
-        val intent = Intent(app, MonitorService::class.java)
+        val intent = Intent(app, MonitorService::class.java).setAction(MonitorService.ACTION_START)
         try {
             app.store.updateSettings(settings, app.publicId)
             compose.runOnUiThread { ContextCompat.startForegroundService(app, intent) }
@@ -42,14 +42,13 @@ class WearableServiceTest {
             assertTrue(MonitorService.running.value)
             compose.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
             compose.runOnUiThread {
-                MonitorService.running.value = false
-                app.stopService(intent)
+                MonitorService.pause(app)
             }
             compose.waitUntil(10_000) { app.wearableState.value.status == "Wearable collection is paused" }
             assertFalse(app.wearableState.value.connected)
             assertTrue(app.store.wearables(app.publicId).isEmpty())
         } finally {
-            compose.runOnUiThread { MonitorService.running.value = false; app.stopService(intent) }
+            compose.runOnUiThread { MonitorService.pause(app) }
             app.store.updateSettings(old.copy(role = Role.SHARER), app.publicId)
         }
     }

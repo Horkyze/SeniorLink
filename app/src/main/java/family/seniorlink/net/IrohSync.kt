@@ -7,7 +7,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Semaphore
 import java.util.concurrent.ConcurrentHashMap
 
-/** All networking is owned by a service scope (sharer) or visible-activity scope (caregiver). */
+/** Networking ends when its collection/receive session or usable network window ends. */
 object IrohSync {
     suspend fun bind(secret: ByteArray): Endpoint = Endpoint.bind(
         EndpointOptions(secretKey = secret, preset = presetN0(), alpns = listOf(Wire.ALPN)),
@@ -115,9 +115,10 @@ object IrohSync {
         }
     }
 
-    suspend fun receiveWhileOpen(
+    suspend fun receive(
         secret: ByteArray,
         store: Store,
+        pollMs: () -> Long = { 15_000L },
         status: (String, String) -> Unit,
     ): Unit = supervisorScope {
         val endpoint = bind(secret)
@@ -148,7 +149,7 @@ object IrohSync {
                                 }
                                 status(peer, if (more) "Fetching history…" else "Up to date")
                                 backoff = 3_000
-                                delay(if (more) 100 else 15_000)
+                                delay(if (more) 100 else pollMs())
                             } catch (e: CancellationException) {
                                 // A per-attempt timeout is recoverable; lifecycle cancellation is not.
                                 currentCoroutineContext().ensureActive()

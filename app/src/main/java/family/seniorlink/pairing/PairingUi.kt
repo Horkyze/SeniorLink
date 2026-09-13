@@ -48,7 +48,7 @@ fun ConnectionSetup(state: ScreenState, model: MainViewModel) {
     }
     Text(if (sharing) "Show your QR to the caregiver. Then compare the code on both phones and confirm."
     else "On the sharing phone, open Phones → Connect a caregiver. Scan its QR, then compare the code together.")
-    Text("Keep both apps open and connected to the internet.")
+    Text("Keep both apps open and connected to the internet. Background updates turn on after an approved connection unless you previously paused them in Settings.")
     OutlinedTextField(
         name, { name = it.take(40) }, label = { Text("Your name (optional)") },
         placeholder = { Text(if (sharing) "e.g. Grandad" else "e.g. Anna") },
@@ -132,7 +132,7 @@ internal fun PairingDialog(state: PairingState, approve: (String) -> Unit, decli
                             Text("Confirmed. Keep both apps open while we finish.")
                         } else if (state.hosting) {
                             Text("Check that both phones show the same code.")
-                            Text("Allow this caregiver to see your shared updates and saved history while sharing is on.")
+                            Text("Allow this caregiver to see your selected updates and saved history. Sharing starts automatically after connecting unless you previously paused it. You can pause it in Settings.")
                         } else {
                             Text("If both codes match, confirm on the sharing phone.")
                             Text("Waiting for confirmation on the sharing phone…")
@@ -140,8 +140,8 @@ internal fun PairingDialog(state: PairingState, approve: (String) -> Unit, decli
                     }
                     PairingStep.CONNECTED -> {
                         Text("${state.peerName} is now connected. You don't need to scan anything else.")
-                        Text(if (state.hosting) "Choose what to share in Settings. When you're ready, tap Start sharing in Updates."
-                        else "Updates appear when the sharing phone has Start sharing turned on.")
+                        Text(if (state.hosting) "Sharing is on by default after connecting, with only your selected features. A previous pause stays in effect. Review Sharing in Settings to change it."
+                        else "Background updates are on by default after connecting. A previous pause stays in effect. Both phones must be reachable and sharing must be on.")
                     }
                     PairingStep.DECLINED -> Text("To connect, show a new QR and compare the codes again.")
                     PairingStep.EXPIRED -> Text("The invitation has expired. On the sharing phone, tap Connect a caregiver for a new QR.")

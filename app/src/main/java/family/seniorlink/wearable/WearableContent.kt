@@ -96,7 +96,7 @@ internal fun WearableContent(
             Text(if (state.settings.wearableAddress.isBlank()) "No wearable selected" else state.settings.wearableName)
             Text(live.status)
             TextButton(onClick = onSettings) { Text("Wearable settings") }
-            if (!state.settings.wearable) Text("Enable Share wearable readings in Settings, save, then start sharing from Updates.")
+            if (!state.settings.wearable) Text("Enable Share wearable readings in Settings, save, then turn on Sharing in Settings.")
         } else {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 state.peers.forEach { peer ->
@@ -124,7 +124,7 @@ internal fun WearableContent(
         Text("The graph shows the last pulse from each two-minute summary. History includes ranges and averages. Readings stop when the band is disconnected or not measuring.")
     }
     if (sharer) Panel("Available Bluetooth data") {
-        if (live.capabilities.isEmpty()) Text("Start sharing to discover the selected wearable's services.")
+        if (live.capabilities.isEmpty()) Text("Turn on Sharing in Settings to discover the selected wearable's services.")
         live.capabilities.forEach { Text(it) }
         if (live.issues.isNotEmpty()) {
             Text("Messages from this connection", fontWeight = FontWeight.SemiBold)

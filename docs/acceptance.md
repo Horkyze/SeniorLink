@@ -49,14 +49,62 @@ The emulator tests do not establish manufacturer-specific battery behavior.
   old timestamps and an unreachable status, not a false fresh update.
 - Reconnect and cross from Wi-Fi to mobile data, including different networks.
 - Test screen-off and overnight Doze, then check actual battery consumption.
-- Reboot and force-stop the sharing phone. Monitoring must remain stopped until
-  explicitly started again; follow the restart instructions in the UI.
+- Close and swipe away the app while sharing; verify the visible foreground
+  service continues. Kill the process without Force stop and verify Android's
+  sticky recreation resumes the previously enabled session and collected history.
+- Reboot and update in place while a session is enabled; check recovery after
+  unlock. Repeat while paused and verify no collection or sharing restarts.
+- Force-stop the sharing phone in Android Settings. Verify it stays stopped until
+  reopened. Separately use Android's Active apps Stop and run the recovery job;
+  verify it does not undo an observed user stop, including after a later job-only
+  process dies. Reopening allows the saved enabled session to resume.
 - Disable location services while monitoring, then re-enable/restart and check
   provider behavior. Approximate location must be accepted and labeled with accuracy.
 
+## Background recovery and battery — 0.1.9
+
+- On fresh sharing and caregiver installations, approve a phone connection and
+  confirm background work starts without a dashboard Start/Enable button. Reject
+  an invitation and confirm it does not enable sharing. Optional collection
+  settings must remain unchanged; caregivers must never collect their own data.
+- Deny a required Android permission during automatic startup. Confirm the toggle
+  is off and reopening or adding a peer does not repeatedly prompt or enable it.
+  Turn the Settings toggle on, grant permission, and confirm startup continues
+  without another tap. Rotate during a permission prompt and recheck the result.
+- Turn off the Settings toggle, reconnect/add another phone, and reopen/reboot.
+  Confirm the pause persists. Existing paired installations without a saved
+  preference should adopt the default when opened; a stored Pause must survive.
+- After automatic connection startup on a caregiver, close its screen and confirm retained
+  updates arrive without collecting that phone's own battery, SMS, location or
+  wearable data. Pause background updates; receiving while open should still work.
+- Switch between foreground and background receiving repeatedly. Confirm only
+  one transport receiver is active and each caregiver retains its own durable
+  cursor. Revoke a peer while it is connecting and confirm access remains closed.
+- Test Wi-Fi/mobile handover, airplane mode and Data Saver/UID blocking. Verify
+  reconnection when permitted and no false fresh status while blocked or offline.
+- Exercise deep and light Doze, their maintenance windows and final idle exit,
+  with and without battery exemption. Verify overlapping network windows deliver
+  saved events and timestamps remain honest. No continuous wake lock is expected.
+- On Android 14/15 or newer, test sticky location-service recreation with only
+  foreground location permission. Separately reboot/update with and without
+  background location permission. Without it, other enabled features recover and
+  location resumes on visible reopening; with it, location may resume at boot.
+- Revoke each required permission while running and while the process is absent.
+  Confirm the session pauses and does not silently reactivate when permission is
+  restored. Declining optional background location must leave other features usable.
+- Test the periodic recovery job with battery exemption on/off. If Android rejects
+  startup, verify the actionable resume notification instead of repeated crashes.
+- Compare similar 8–24-hour unplugged runs with sharing paused/enabled, then with
+  location and wearable features individually enabled. Record device/OS, network,
+  battery optimization, charging intervals, update delays and Android's per-app
+  battery estimate. Whole-device battery percentages do not establish app drain.
+- Inspect the background controls and notification at normal and large font sizes.
+  Verify Pause cancels the recovery job and stale collection callbacks cannot
+  publish into a newly started session. Do not clear personal data for these tests.
+
 ## Heart-rate graph and batteries
 
-- Install 0.1.8 on all paired phones. Verify in-place updates preserve pairing,
+- Install 0.1.9 on all paired phones. Verify in-place updates preserve pairing,
   settings, history and independent caregiver catch-up.
 - Enable Share phone battery only on the sharing phone, save and start. Compare
   its percentage and charging label with Android, then plug/unplug the charger
@@ -68,8 +116,9 @@ The emulator tests do not establish manufacturer-specific battery behavior.
   service is absent, confirm the card stays Unknown; record actual exposed services.
 - Switch family phones and replace the selected watch. Values and chart points
   must stay separate. Remove a paired source and confirm its cards and graph clear.
-- Check 1-hour/24-hour graphs, a single sample, disconnected gaps, contact loss,
-  stale readings and empty history. Check normal and large fonts on family phones.
+- Check the last-hour dashboard trend and selected-day wearable chart, a single
+  sample, disconnected gaps, contact loss, stale readings and empty history.
+  Check normal and large fonts on family phones.
 
 ## SMS and Telegram
 
@@ -91,3 +140,24 @@ The emulator tests do not establish manufacturer-specific battery behavior.
   build time, but alignment alone is not complete runtime validation.
 - Decide on a stable release signing key before ongoing deployment. A different
   signer cannot update an existing install without uninstalling and losing data.
+
+## Daily summary — 0.1.9
+
+- Verify the Updates dashboard has a bounded set of daily groups and no appended
+  event feed. Keep the sharing phone's I'm okay action and Settings pause controls.
+- Select different family phones. Heart rate, batteries, daily counts, preview
+  records and full history must all follow the selection; removing a peer must
+  remove its data from every view.
+- Check counts with more than 100 events in one day. Group by recorded local date,
+  including late deliveries and daylight-saving days. Counts describe retained
+  observations, not a complete activity log.
+- Open each group, expand a record, and open full history. Change dates/types,
+  load earlier records, and verify the visible position is preserved while loading
+  more. Check the empty state and zero/unknown battery distinction.
+- Open a saved location from history, including a fix outside the map's latest
+  1,000 entries. Verify its source, sequence and coordinates. Expiry, feature
+  withdrawal and revocation must not leave a separate cached copy in this route.
+- Check normal and 2× text size: family selection, date controls, groups, preview
+  sheets, Close, filters and Load earlier must stay reachable without clipped text.
+- Verify the dashboard, preview sheet and history still protect screenshots and
+  recent-app thumbnails. Use only synthetic fixtures for captured verification.

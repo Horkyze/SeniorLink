@@ -68,7 +68,7 @@ class HealthOverviewUiTest {
                 compose.activity.window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
                 compose.activity.setContent { CalmTheme { SeniorScreen(model, updates) } }
             }
-            compose.onNodeWithText("How is Grandad?").assertIsDisplayed()
+            compose.onNodeWithText("Daily summary").assertIsDisplayed()
             compose.onNodeWithText("72 bpm").assertExists()
             screenshot("calm-overview")
             compose.onNodeWithText("64%").performScrollTo().assertIsDisplayed()
@@ -85,17 +85,18 @@ class HealthOverviewUiTest {
             screenshot("calm-settings")
             compose.onNodeWithTag("navigation-0").performClick().assertIsSelected()
             compose.runOnUiThread { model.screen.value = state() }
-            compose.onNode(hasText("Grandma") and hasClickAction()).performClick()
-            compose.onNodeWithText("How is Grandma?").assertExists()
+            compose.onNodeWithTag("summary-family").performClick()
+            compose.onNodeWithText("Grandma", substring = false).performClick()
+            compose.onNodeWithTag("summary-family").assert(hasText("Grandma", substring = true))
             compose.onNodeWithText("72 bpm").assertDoesNotExist()
             compose.onNodeWithTag("navigation-4").performClick()
             compose.onNode(hasText("Grandma") and hasClickAction()).assertIsSelected()
             compose.onNodeWithText("Heart rate: 72 bpm").assertDoesNotExist()
             compose.onNodeWithTag("navigation-3").performClick()
             compose.onNodeWithTag("navigation-0").performClick()
-            compose.onNodeWithText("How is Grandma?").assertExists()
+            compose.onNodeWithTag("summary-family").assert(hasText("Grandma", substring = true))
             compose.runOnUiThread { model.screen.value = state().copy(peers = emptyList()) }
-            compose.onNodeWithText("Your family updates").assertExists()
+            compose.onNodeWithText("Connect a family phone in Phones to see shared updates.").assertExists()
             compose.onNodeWithText("64%").assertDoesNotExist()
         } finally {
             compose.runOnUiThread { viewModels.clear(); model.screen.value = original }

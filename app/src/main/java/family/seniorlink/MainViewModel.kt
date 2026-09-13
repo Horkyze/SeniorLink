@@ -8,7 +8,7 @@ import androidx.lifecycle.viewModelScope
 import family.seniorlink.core.*
 import family.seniorlink.data.StoredEvent
 import family.seniorlink.monitor.MonitorService
-import family.seniorlink.net.IrohSync
+import family.seniorlink.monitor.BackgroundRecovery
 import family.seniorlink.net.Telegram
 import family.seniorlink.pairing.PairingController
 import kotlinx.coroutines.*
@@ -20,8 +20,8 @@ data class ScreenState(
     val publicId: String = "",
     val settings: Settings = Settings(),
     val peers: List<Peer> = emptyList(),
-    val events: List<StoredEvent> = emptyList(),
     val locations: List<StoredEvent> = emptyList(),
+    val inspectedLocation: StoredEvent? = null,
     val wearables: List<StoredEvent> = emptyList(),
     val phoneBatteries: List<StoredEvent> = emptyList(),
     val pendingTelegram: Long = 0,
@@ -35,9 +35,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val screen = MutableStateFlow(ScreenState())
     val pairing = PairingController(viewModelScope, app.store) { app.identity }
     val wearableScanner = family.seniorlink.wearable.WearableScanner(app)
+    internal val activityBrowser = family.seniorlink.dashboard.ActivityBrowser(viewModelScope, app.store) { app.publicId }
     private val monitorIntent = Intent(app, MonitorService::class.java)
     private var visible = false
-    private var receiverJob: Job? = null
+    @Volatile private var inspectedLocationKey: Pair<String, Long>? = null
+    val permissionRequest = MutableStateFlow<List<String>>(emptyList())
+    private var startRequested = false
+    private var waitingForPermissions = false
 
     init {
         viewModelScope.launch {
@@ -48,8 +52,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 withContext(Dispatchers.IO) { app.publicId }
                 app.store.changes.collect {
+                    val firstRefresh = !screen.value.ready
                     refresh()
                     reconcileReceiver()
+                    reconcileBackground(resumeExisting = firstRefresh)
                 }
             } catch (_: Exception) {
                 screen.update {
@@ -65,8 +71,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val sources = if (app.store.settings.role == Role.SHARER) listOf(app.publicId) else peers.map { it.id }
             ScreenState(
                 ready = true, publicId = app.publicId, settings = app.store.settings,
-                peers = peers, events = app.store.recent(),
+                peers = peers,
                 locations = sources.flatMap { app.store.locations(it) },
+                inspectedLocation = inspectedLocationKey?.takeIf { it.first in sources }?.let { app.store.location(it.first, it.second) },
                 wearables = sources.flatMap { app.store.wearables(it) },
                 phoneBatteries = sources.mapNotNull { app.store.phoneBattery(it) },
                 pendingTelegram = app.store.pendingTelegram(),
@@ -79,30 +86,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun foreground(active: Boolean) {
         visible = active
         if (!active) wearableScanner.stop()
+        if (active) reconcileBackground(resumeExisting = true)
         reconcileReceiver()
     }
 
+    private fun reconcileBackground(resumeExisting: Boolean = false) {
+        if (!visible || !screen.value.ready) return
+        if (app.backgroundSession.enableAfterConnection(screen.value.settings.role, screen.value.peers.isNotEmpty())) {
+            startRequested = true
+        }
+        if (startRequested) continueStart()
+        else if (resumeExisting) BackgroundRecovery.resume(app, visible = true)
+    }
+
     private fun reconcileReceiver() {
-        if (!visible || !screen.value.ready || app.store.settings.role != Role.CAREGIVER) {
-            receiverJob?.cancel()
-            receiverJob = null
-            return
-        }
-        if (receiverJob?.isActive == true) return
-        receiverJob = viewModelScope.launch(Dispatchers.IO) {
-            while (isActive) {
-                try {
-                    IrohSync.receiveWhileOpen(app.identity, app.store) { peer, status ->
-                        app.peerStatus.update { it + (peer to status) }
-                    }
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (_: Exception) {
-                    app.peerStatus.value = app.store.peers().associate { it.id to "Network unavailable — retrying" }
-                    delay(15_000)
-                }
-            }
-        }
+        app.caregiverReceiver.visible(visible && screen.value.ready && app.store.settings.role == Role.CAREGIVER)
     }
 
     fun chooseRole(role: Role) = action {
@@ -110,7 +108,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun save(settings: Settings, token: String) = action {
-        check(!MonitorService.running.value) { "Pause monitoring before changing collection settings." }
+        check(!app.backgroundSession.enabled(Role.SHARER)) { "Pause monitoring before changing collection settings." }
         require(!settings.sms || settings.smsSenders.lineSequence().any { it.isNotBlank() && it.trim() != "*" }) {
             "Add at least one exact SMS sender before enabling SMS."
         }
@@ -147,27 +145,62 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun removePeer(id: String) = action { app.store.removePeer(id) }
 
+    fun inspectLocation(stored: StoredEvent) = action {
+        require(stored.event.kind == Kind.LOCATION)
+        inspectedLocationKey = stored.source to stored.event.sequence
+    }
+
     fun start() {
-        if (MonitorService.missingPermissions(app, app.store.settings).isNotEmpty()) {
-            message("Grant the selected permissions, then tap Start again.")
+        if (!screen.value.ready || app.store.settings.role == Role.UNSET) return
+        app.backgroundSession.enable(app.store.settings.role)
+        startRequested = true
+        continueStart()
+    }
+
+    private fun continueStart() {
+        if (!app.backgroundSession.enabled(app.store.settings.role)) {
+            startRequested = false
+            permissionRequest.value = emptyList()
             return
         }
+        if (!visible || !startRequested || waitingForPermissions) return
+        val missing = MonitorService.missingPermissions(app, app.store.settings)
+        if (missing.isNotEmpty()) {
+            waitingForPermissions = true
+            permissionRequest.value = missing
+            return
+        }
+        startRequested = false
         try {
-            ContextCompat.startForegroundService(app, monitorIntent)
+            // Authorization is already saved; a queued start must not undo a later Pause.
+            ContextCompat.startForegroundService(app, Intent(monitorIntent).setAction(MonitorService.ACTION_RESUME_VISIBLE))
         } catch (_: Exception) {
             message("Android prevented startup. Keep this screen open and review app permissions.")
         }
     }
 
+    fun permissionsLaunched() { permissionRequest.value = emptyList() }
+
+    fun permissionsUpdated() {
+        waitingForPermissions = false
+        if (!app.backgroundSession.enabled(app.store.settings.role)) startRequested = false
+        if (!startRequested) return
+        if (MonitorService.missingPermissions(app, app.store.settings).isNotEmpty()) {
+            pause()
+            message("Background updates are paused because a required permission was not granted. You can turn them on again in Settings.")
+        } else continueStart()
+    }
+
     fun pause() {
+        startRequested = false
+        permissionRequest.value = emptyList()
         // Close the authorization gate before asynchronous service cleanup.
-        MonitorService.running.value = false
+        MonitorService.pause(app)
         app.wearableState.value = app.wearableState.value.copy(connected = false, status = "Wearable collection is paused")
-        app.stopService(monitorIntent)
     }
 
     fun checkIn() = action {
-        check(MonitorService.running.value) { "Start visible sharing before sending a check-in." }
+        check(MonitorService.running.value) { "Turn on Sharing in Settings before sending a check-in." }
         app.record(Event(0, Kind.CHECK_IN, System.currentTimeMillis()))
         message("I'm okay — check-in saved for your caregivers")
     }
@@ -182,7 +215,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun message(text: String?) { screen.update { it.copy(message = text) } }
 
-    override fun onCleared() { wearableScanner.stop(); super.onCleared() }
+    override fun onCleared() { app.caregiverReceiver.visible(false); wearableScanner.stop(); super.onCleared() }
 
     private fun action(block: suspend () -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {

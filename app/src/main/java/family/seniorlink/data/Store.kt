@@ -8,6 +8,9 @@ import family.seniorlink.core.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.encodeToString
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 
 data class StoredEvent(val source: String, val event: Event)
 data class TelegramJob(val source: String, val event: Event, val attempts: Int)
@@ -193,6 +196,46 @@ class Store(context: Context, name: String = "seniorlink") : SQLiteOpenHelper(co
             }
         }
     }
+
+    /** Counts use all retained records, independent of the limited mixed dashboard feed. */
+    @Synchronized fun activityDay(source: String, date: LocalDate, kind: Kind? = null, limit: Int = 0,
+        now: Long = System.currentTimeMillis(), zone: ZoneId = ZoneId.systemDefault()): ActivityDay {
+        require(limit in 0..10_000)
+        val (start, end) = dayBounds(date, zone)
+        val cutoff = (now - RETENTION_MS).toString()
+        val where = "source=? AND storedAt>=? AND occurredAt>=? AND occurredAt<?"
+        val args = arrayOf(source, cutoff, start.toString(), end.toString())
+        val counts = readableDatabase.rawQuery(
+            "SELECT kind,COUNT(*),MAX(occurredAt) FROM events WHERE $where GROUP BY kind", args,
+        ).use { c -> buildList {
+            while (c.moveToNext()) add(ActivityCount(Kind.valueOf(c.getString(0)), c.getInt(1), c.getLong(2)))
+        } }
+        fun records(filter: Kind?, size: Int): List<StoredEvent> = readableDatabase.rawQuery(
+            "SELECT json FROM events WHERE $where" + (if (filter != null) " AND kind=?" else "") +
+                " ORDER BY occurredAt DESC,sequence DESC LIMIT ?",
+            args + (filter?.let { arrayOf(it.name) } ?: emptyArray()) + size.toString(),
+        ).use { c -> buildList {
+            while (c.moveToNext()) add(StoredEvent(source, Wire.json.decodeFromString<Event>(c.getString(0))))
+        } }
+        val page = if (limit == 0) emptyList() else records(kind, limit + 1)
+        val today = Instant.ofEpochMilli(now).atZone(zone).toLocalDate()
+        val range = readableDatabase.rawQuery(
+            "SELECT MIN(occurredAt),MAX(occurredAt) FROM events WHERE source=? AND storedAt>=?", arrayOf(source, cutoff),
+        ).use { c ->
+            c.moveToFirst()
+            if (c.isNull(0)) today to today else
+                minOf(today, Instant.ofEpochMilli(c.getLong(0)).atZone(zone).toLocalDate()) to
+                    maxOf(today, Instant.ofEpochMilli(c.getLong(1)).atZone(zone).toLocalDate())
+        }
+        return ActivityDay(source, date, counts, page.take(limit), page.size > limit, range.first, range.second,
+            if (kind == Kind.WEARABLE && limit > 0) records(Kind.WEARABLE, 1000) else emptyList())
+    }
+
+    /** Resolve an explicitly opened historical fix without keeping a second cache after revocation. */
+    @Synchronized fun location(source: String, sequence: Long, now: Long = System.currentTimeMillis()): StoredEvent? =
+        readableDatabase.rawQuery("SELECT json FROM events WHERE source=? AND sequence=? AND kind=? AND storedAt>=?",
+            arrayOf(source, sequence.toString(), Kind.LOCATION.name, (now - RETENTION_MS).toString()),
+        ).use { c -> if (c.moveToFirst()) StoredEvent(source, Wire.json.decodeFromString<Event>(c.getString(0))) else null }
 
     @Synchronized fun nextTelegram(now: Long): TelegramJob? = readableDatabase.rawQuery(
         "SELECT t.source,e.json,t.attempts FROM telegram t JOIN events e ON e.source=t.source AND e.sequence=t.sequence WHERE t.retryAt<=? ORDER BY t.sequence LIMIT 1",
