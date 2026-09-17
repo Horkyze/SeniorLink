@@ -1,5 +1,6 @@
 package family.seniorlink
 
+import android.Manifest
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.os.Build
 import android.view.accessibility.AccessibilityNodeInfo
@@ -7,6 +8,7 @@ import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.rule.GrantPermissionRule
 import family.seniorlink.core.Role
 import family.seniorlink.monitor.MonitorService
 import org.junit.Assert.*
@@ -19,6 +21,8 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class DefaultSharingPermissionTest {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
+    @get:Rule val location = GrantPermissionRule.grant(
+        Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION)
 
     @Test fun denialKeepsUpdatesPausedAndGrantContinuesSettingsStartupAutomatically() {
         assumeTrue(Build.VERSION.SDK_INT >= 33)

@@ -1,5 +1,10 @@
 # Direct Bluetooth wearables
 
+In 0.1.11 you can save changes while sharing is on; manual Pause is no longer
+required. Android asks for any new permissions before applying an active
+configuration. Existing disabled features stay disabled after an update; new
+sharing setups select phone battery, unlock activity and location.
+
 SeniorLink can connect directly to a selected Bluetooth LE peripheral on the
 sharing phone. Samsung Health and Health Connect are not part of this data path:
 
@@ -9,10 +14,10 @@ Wearable → Bluetooth LE → sharing phone's local summaries → encrypted iroh
 
 ## Install and start
 
-1. Install the 0.1.7 APK on the sharing phone **and every caregiver phone**. Sync
+1. Install the 0.1.11 APK on the sharing phone **and every caregiver phone**. Sync
    protocol 3 cannot communicate with 0.1.6 or older. Updating in place with the
    published APK preserves identity, pairing, settings and history.
-2. On the sharing phone, pause sharing and open **Settings → Bluetooth wearable**.
+2. On the sharing phone, open **Settings → Bluetooth wearable**.
 3. Tap **Choose wearable**. Allow Nearby devices on Android 12 or newer. Android
    8–11 require fine Location permission and the system Location setting to scan;
    this does not enable SeniorLink location sharing. Previously paired BLE/dual-mode

@@ -82,7 +82,8 @@ internal fun SeniorScreen(model: MainViewModel, updates: UpdateViewModel) {
     val running by MonitorService.running.collectAsStateWithLifecycle()
     val locationDeferred by MonitorService.locationDeferred.collectAsStateWithLifecycle()
     val enabledRole by model.app.backgroundSession.role.collectAsStateWithLifecycle()
-    val sharingEnabled = enabledRole == Role.SHARER
+    val savingSettings by model.savingSettings.collectAsStateWithLifecycle()
+    val sharingDraft by model.settingsDraft.collectAsStateWithLifecycle()
     val monitorStatus by model.app.monitorStatus.collectAsStateWithLifecycle()
     val telegramStatus by model.app.telegramStatus.collectAsStateWithLifecycle()
     val peerStatus by model.app.peerStatus.collectAsStateWithLifecycle()
@@ -124,6 +125,7 @@ internal fun SeniorScreen(model: MainViewModel, updates: UpdateViewModel) {
                 Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Panel("Welcome") {
                         Text("Install this same app on each phone. Choose this phone's role. Background updates start after an approved phone connection.")
+                        Text("Sharing setup selects phone battery, unlock activity and location. Review these in Settings before connecting a caregiver. Android will ask for location permission; SMS and wearable sharing stay off until you choose them.")
                         Button(onClick = { model.chooseRole(Role.SHARER) }, modifier = Modifier.fillMaxWidth()) {
                             Text("Share my information")
                         }
@@ -166,7 +168,7 @@ internal fun SeniorScreen(model: MainViewModel, updates: UpdateViewModel) {
                             }
                             UpdateSettings(checkingUpdate, updateResult, updates::checkForUpdates)
                             if (state.settings.role == Role.SHARER) {
-                                SharingSettings(state, sharingEnabled, telegramStatus, model)
+                                SharingSettings(state, savingSettings, telegramStatus, model, sharingDraft ?: state.settings) { model.settingsDraft.value = it }
                             } else Panel("Caregiver mode") {
                                 Text("This phone only receives family updates. It does not collect its own battery, wearable, location, unlock activity or SMS.")
                                 Text("Background updates start after connecting a sharing phone. A connection invitation can stay active for up to 5 minutes.")
@@ -266,46 +268,46 @@ private fun Phones(state: ScreenState, model: MainViewModel) {
 }
 
 @Composable
-private fun SharingSettings(state: ScreenState, running: Boolean, telegramStatus: String, model: MainViewModel) {
-    var draft by remember(state.settings) { mutableStateOf(state.settings) }
+private fun SharingSettings(state: ScreenState, saving: Boolean, telegramStatus: String, model: MainViewModel,
+    draft: Settings, change: (Settings) -> Unit) {
     var token by remember { mutableStateOf("") }
     Panel("Choose what to share") {
-        if (running) Text("Turn off Sharing above before editing, then save and turn it back on.")
-        Toggle("Share phone battery", draft.phoneBattery, { draft = draft.copy(phoneBattery = it) }, !running)
+        Text("Save changes to apply them while sharing. Android may ask for permission before enabling a feature.")
+        Toggle("Share phone battery", draft.phoneBattery, { change(draft.copy(phoneBattery = it)) }, !saving)
         Text("Share this phone’s battery percentage and charging state about every 5 minutes while sharing is active.")
-        Toggle("Observe phone unlocks", draft.unlock, { draft = draft.copy(unlock = it) }, !running)
+        Toggle("Observe phone unlocks", draft.unlock, { change(draft.copy(unlock = it)) }, !saving)
         Text("Best-effort Android unlock broadcasts, not a complete audit log.")
-        Toggle("Share location", draft.location, { draft = draft.copy(location = it) }, !running)
+        Toggle("Share location", draft.location, { change(draft.copy(location = it)) }, !saving)
         Text("Approximately every 15 minutes when Android provides a fix. Network location is preferred to reduce battery use; GPS is a fallback.")
-        Toggle("Share incoming SMS from selected senders", draft.sms, { draft = draft.copy(sms = it) }, !running)
+        Toggle("Share incoming SMS from selected senders", draft.sms, { change(draft.copy(sms = it)) }, !saving)
         if (draft.sms) {
-            OutlinedTextField(draft.smsSenders, { draft = draft.copy(smsSenders = it.take(2000)) },
-                label = { Text("Exact senders, one per line") }, enabled = !running, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(draft.smsSenders, { change(draft.copy(smsSenders = it.take(2000))) },
+                label = { Text("Exact senders, one per line") }, enabled = !saving, modifier = Modifier.fillMaxWidth())
             Text("Use full numbers, including country code, or exact sender names. Wildcards are not accepted.")
-            Toggle("Also share SMS message bodies", draft.smsBodies, { draft = draft.copy(smsBodies = it) }, !running)
+            Toggle("Also share SMS message bodies", draft.smsBodies, { change(draft.copy(smsBodies = it)) }, !saving)
             Text("Bodies can contain private conversations and banking details. Likely codes are withheld, but filtering cannot detect every secret.")
         }
     }
-    WearableSettings(draft, !running, model.wearableScanner) { draft = it }
+    WearableSettings(draft, !saving, model.wearableScanner, change)
     Panel("Optional Telegram output") {
-        Toggle("Forward enabled updates to Telegram", draft.telegram, { draft = draft.copy(telegram = it) }, !running)
+        Toggle("Forward enabled updates to Telegram", draft.telegram, { change(draft.copy(telegram = it)) }, !saving)
         Text("Telegram bot/channel messages are NOT end-to-end encrypted. Only this sharing phone posts. Network retries can occasionally duplicate a post.")
         OutlinedTextField(token, { token = it.take(160) },
             label = { Text(if (state.tokenSaved) "New bot token (leave blank to keep saved)" else "Bot token") },
-            visualTransformation = PasswordVisualTransformation(), enabled = !running,
+            visualTransformation = PasswordVisualTransformation(), enabled = !saving,
             modifier = Modifier.fillMaxWidth(), singleLine = true)
-        OutlinedTextField(draft.telegramChat, { draft = draft.copy(telegramChat = it.take(100)) },
-            label = { Text("Chat/channel ID or @channel") }, enabled = !running, modifier = Modifier.fillMaxWidth(), singleLine = true)
+        OutlinedTextField(draft.telegramChat, { change(draft.copy(telegramChat = it.take(100))) },
+            label = { Text("Chat/channel ID or @channel") }, enabled = !saving, modifier = Modifier.fillMaxWidth(), singleLine = true)
         Text("The bot needs permission to post to the channel. Token is encrypted locally and never included in pairing codes.")
         Text("$telegramStatus • ${state.pendingTelegram} queued")
         OutlinedButton(onClick = model::testTelegram, enabled = state.tokenSaved && draft == state.settings && token.isBlank()) {
             Text("Send test to saved destination")
         }
     }
-    Button(onClick = { model.save(draft, token); token = "" }, enabled = !running, modifier = Modifier.fillMaxWidth()) {
+    Button(onClick = { model.save(draft, token); token = "" }, enabled = !saving, modifier = Modifier.fillMaxWidth()) {
         Text("Save settings")
     }
-    Text("Save your changes, then turn on Sharing above. Android will ask for a notification permission and any permissions needed by your selected features.")
+    Text("If Sharing is paused, saving keeps it paused. Turn Sharing on when you want to resume.")
 }
 
 @Composable

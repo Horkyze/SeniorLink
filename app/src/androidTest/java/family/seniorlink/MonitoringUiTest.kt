@@ -23,6 +23,7 @@ import org.junit.runner.RunWith
 class MonitoringUiTest {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
     @get:Rule val permissions = GrantPermissionRule.grant(
+        Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION,
         *if (Build.VERSION.SDK_INT >= 33) arrayOf(Manifest.permission.POST_NOTIFICATIONS) else emptyArray(),
     )
 
@@ -41,7 +42,9 @@ class MonitoringUiTest {
         assertEquals(Role.SHARER, app.store.settings.role)
         assertFalse(app.store.settings.sms)
         assertFalse(app.store.settings.smsBodies)
-        assertFalse(app.store.settings.location)
+        assertTrue(app.store.settings.location)
+        assertTrue(app.store.settings.phoneBattery)
+        assertTrue(app.store.settings.unlock)
         assertTrue(compose.activity.window.attributes.flags and WindowManager.LayoutParams.FLAG_SECURE != 0)
         assertFalse(MonitorService.running.value)
         val peer = "a".repeat(64)

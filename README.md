@@ -6,8 +6,8 @@ Caregivers open the same app on their own phones to see check-ins, recent phone
 activity, locations, selected SMS and readings from compatible wearables. Updates
 travel over an encrypted phone-to-phone connection; you don't need to run a server.
 
-**[Download the Android app](https://github.com/Horkyze/SeniorLink/releases/tag/v0.1.10)**
-· [Release notes](docs/releases/v0.1.10.md)
+**[Download the Android app](https://github.com/Horkyze/SeniorLink/releases/tag/v0.1.11)**
+· [Release notes](docs/releases/v0.1.11.md)
 · [Wearable setup](docs/wearables.md)
 · [Build from source](#building-and-contributing)
 
@@ -20,7 +20,24 @@ independently on their own phones.
 This is an early **family pilot**, not a medical device or emergency-response
 service. It does not send emergency alerts or guarantee continuous monitoring.
 
-## What's new in 0.1.10
+## What's new in 0.1.11
+
+- History sync reuses one encrypted connection across pages instead of reconnecting
+  every 20 records. Both phones need 0.1.11 for reuse; existing protocol-3
+  phones remain compatible.
+- New sharing setups select **phone battery, unlock activity and location** by
+  default. Review these choices in Settings before connecting a caregiver.
+  Android permissions and caregiver approval still apply. SMS, wearables and
+  Telegram require separate setup. Updates preserve existing saved choices.
+- **Save settings while sharing is on.** Changes apply without manually pausing;
+  a new permission is requested before changing an active configuration. Denial
+  keeps the previous settings running. Saving while paused does not resume sharing.
+  Unsaved feature choices survive tab changes and screen rotation.
+- Battery cards explain missing readings. The first supported wearable-battery
+  reading is saved promptly, and reconnecting keeps earlier battery readings with
+  their original timestamps until a newer value arrives.
+
+### Interactive heart-rate charts
 
 The expanded **heart-rate charts** now support touch controls. Tap the dashboard's
 heart-rate card or wearable group to open the selected day's chart, or open
@@ -52,15 +69,15 @@ Larger text stacks the battery cards and wraps navigation into two rows.
 The graph uses the last recorded pulse from each two-minute summary, not an ECG.
 Missing readings stay missing; percentages and pulse readings keep their own times.
 
-To share phone battery, pause sharing, enable **Settings → Share phone battery**,
-save, and turn **Settings → Sharing** back on. Phone-battery collection is off by
-default and records the percentage and available charging state about every five
-minutes. Smartwatch battery appears when
+To share phone battery, enable **Settings → Share phone battery** and save while
+Sharing is on. It is selected by default for new sharing setups; existing saved
+choices stay unchanged after an update. Collection records the percentage and
+available charging state immediately after starting and about every five minutes. Smartwatch battery appears when
 the selected wearable exposes standard Bluetooth battery data; otherwise it shows
 **Unknown**. One wearable is selected per sharing phone; caregivers can switch
 between family phones. Physical Galaxy Fit3 battery support is still unverified.
 
-Version 0.1.10 uses sync protocol 3 and can sync with 0.1.7–0.1.9. All paired
+Version 0.1.11 uses sync protocol 3 and can sync with 0.1.7–0.1.10. All paired
 phones must use **0.1.7 or newer**; 0.1.6 and older cannot sync with these versions. The
 published APK uses the same signing key as earlier releases; update in place to
 preserve identity, pairing and history.
@@ -71,10 +88,12 @@ You need **Android 8.0 or newer** on the sharing phone and every caregiver phone
 Both roles use the same APK (the Android installation file).
 
 1. **Install SeniorLink on each phone.** Open the release page above, download
-   **SeniorLink-0.1.10-debug.apk** from **Assets**, and open it.
+   **SeniorLink-0.1.11-debug.apk** from **Assets**, and open it.
    Android may ask you to allow installation from the browser or file app.
 2. **Choose each phone's role.** Your family member chooses **Share my information**;
-   everyone receiving updates chooses **I'm a caregiver**.
+   everyone receiving updates chooses **I'm a caregiver**. New sharing setups select
+   phone battery, unlock activity and location. Review them in **Settings** before
+   connecting a caregiver; SMS, wearables and Telegram require separate setup.
 3. **Connect a caregiver.** Keep both apps open and online. On the sharing phone,
    open **Phones → Connect a caregiver**. On the caregiver phone, open
    **Phones → Scan QR** and scan the code.
@@ -83,10 +102,10 @@ Both roles use the same APK (the Android installation file).
    caregiver. Approval gives access to retained history for enabled features while
    sharing is on. Background updates start automatically after approval; grant
    the requested Android permissions to continue.
-5. **Choose what to share.** On the sharing phone, open **Settings**, turn off
-   **Sharing**, select features and tap **Save settings**, then turn **Sharing**
-   back on. Android asks for permissions needed by selected features; granting
-   them continues startup automatically.
+5. **Change what to share.** On the sharing phone, open **Settings**, select
+   features and tap **Save settings**. Sharing can stay on. Android asks for new
+   permissions before applying changes; denial keeps the previous settings.
+   If Sharing is paused, saving does not turn it back on.
 6. **Try a check-in.** Tap **I'm okay — check in** on the sharing phone. Open the
    caregiver app to see it arrive.
 
@@ -95,7 +114,7 @@ closed. Sharing remains enabled across ordinary process interruptions and
 reboot; Android decides when restart is allowed. Turn off **Settings → Sharing**
 or use the notification's **Pause sharing** action to stop collecting and sharing.
 The pause stays in effect until you turn Sharing on again, even after another
-phone connects. Pause before changing collection settings.
+phone connects. You can edit and save collection settings while sharing is on.
 Removing a caregiver stops future access, but cannot erase updates already received.
 
 On caregiver phones, **Settings → Receive in background** turns on by default
@@ -103,9 +122,9 @@ when a sharing phone is connected. Turn it off to pause background receiving;
 opening the caregiver app still fetches updates. This does not collect any of
 the caregiver's own information.
 
-**Updating an existing installation?** Install 0.1.10; it can sync with
-0.1.7–0.1.9, but paired phones running 0.1.6 or older must also be updated. The published
-APK uses the same signing key as versions 0.1.0–0.1.9, so install it as an update
+**Updating an existing installation?** Install 0.1.11; it can sync with
+0.1.7–0.1.10, but paired phones running 0.1.6 or older must also be updated. The published
+APK uses the same signing key as versions 0.1.0–0.1.10, so install it as an update
 without uninstalling to keep pairing and history. Versions 0.1.3 onward check for
 updates when opened; 0.1.5 onward also offers **Settings → App updates → Check for updates**.
 If an older version's direct download is blocked, open the release page above
@@ -133,9 +152,9 @@ timestamps: saved information may be old.
 
 ### Connect a wearable
 
-On the sharing phone, pause sharing and open **Settings → Bluetooth wearable →
-Choose wearable**. Select the nearby band, enable **Share wearable readings**,
-save and turn **Settings → Sharing** back on. Allow Nearby devices permission when asked; Android
+On the sharing phone, open **Settings → Bluetooth wearable → Choose wearable**.
+Select the nearby band, enable **Share wearable readings** and save. If Sharing
+is paused, turn it on to collect readings. Allow Nearby devices permission when asked; Android
 8–11 require Location permission and the system Location setting for scanning.
 
 The band sends readings directly to the sharing phone over Bluetooth. The phone
@@ -284,7 +303,7 @@ also be restored without an Android toolchain using Python 3:
 python3 scripts/unpack-pilot.py
 ```
 
-This reconstructs and checksum-verifies `dist/SeniorLink-0.1.10-debug.apk`.
+This reconstructs and checksum-verifies `dist/SeniorLink-0.1.11-debug.apk`.
 The archive parts are not themselves installable. Full APKs, signing material and
 build output remain ignored. CI builds an APK and uploads test reports; it does
 not publish a release automatically.

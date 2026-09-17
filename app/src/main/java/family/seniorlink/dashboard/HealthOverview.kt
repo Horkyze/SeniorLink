@@ -145,8 +145,17 @@ internal fun DeviceBatteries(state: ScreenState, source: String?, snapshot: Wear
         (state.settings.role == Role.SHARER && source == state.publicId || state.peers.any { peer -> peer.id == source }) }
         .maxByOrNull { it.event.occurredAt }?.event
     val watch = snapshot.values.firstOrNull { it.metric == WearableMetric.BATTERY }
-    val phoneMissing = if (state.settings.role == Role.SHARER && !state.settings.phoneBattery)
-        "Enable Share phone battery in Settings." else "No phone battery shared yet."
+    val phoneMissing = when {
+        state.settings.role == Role.SHARER && !state.settings.phoneBattery ->
+            "Enable Share phone battery in Settings, save, then turn Sharing on."
+        state.settings.role == Role.SHARER ->
+            "No reading yet. Turn Sharing on in Settings to collect phone battery."
+        source == null -> "Connect a family phone to receive its battery level."
+        else -> "No reading received. On the sharing phone, check Share phone battery in Settings and keep Sharing on."
+    }
+    val watchMissing = if (state.settings.role == Role.SHARER && !state.settings.wearable)
+        "Choose a wearable and enable Share wearable readings in Settings."
+        else "No battery reading. Some watches do not share battery over Bluetooth."
     val phoneStatus = when (phone?.phoneBattery?.charging) {
         true -> "Charging"; false -> "Not charging"; null -> "Charging state unavailable"
     }
@@ -156,7 +165,7 @@ internal fun DeviceBatteries(state: ScreenState, source: String?, snapshot: Wear
         val cards: @Composable (Modifier) -> Unit = { modifier ->
             BatteryCard("Phone", R.drawable.ic_phone_outline, phone?.phoneBattery?.percent, phone?.occurredAt, now, phoneStatus, phoneMissing, modifier, compact, onPhone)
             BatteryCard("Smartwatch", R.drawable.ic_watch_outline, watch?.value?.roundToInt(), watch?.receivedAt, now, "",
-                "No battery reading. Some watches do not share battery over Bluetooth.", modifier, compact, onWatch)
+                watchMissing, modifier, compact, onWatch)
         }
         if (stacked) Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { cards(Modifier.fillMaxWidth()) }
         else Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) { cards(Modifier.weight(1f)) }
@@ -179,8 +188,9 @@ private fun BatteryCard(title: String, icon: Int, percent: Int?, at: Long?, now:
                 }
                 Text(percent?.let { "$it%" } ?: "Unknown", style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold, color = color)
-                Text(if (at != null) "Recorded ${formatReadingTime(at, now)}" else "No saved reading",
+                Text(if (at != null) "Recorded ${formatReadingTime(at, now)}" else missing,
                     style = MaterialTheme.typography.bodySmall, color = Calm.Muted)
+                if (percent != null && detail.isNotBlank()) Text(detail, style = MaterialTheme.typography.bodySmall, color = Calm.Muted)
                 if (low) Text("Low battery", style = MaterialTheme.typography.labelMedium, color = Calm.Low)
                 if (at != null && now - at > 600_000) Text("No recent reading", style = MaterialTheme.typography.bodySmall, color = Calm.Muted)
             } else {

@@ -53,4 +53,24 @@ class HealthDataTest {
         val live = WearableState(latest = listOf(LiveWearableValue(WearableMetric.BATTERY, 99.0, 100_000)))
         assertTrue(wearableSnapshot(state(), live, source).values.isEmpty())
     }
+
+    @Test fun reconnectKeepsSavedBatteryWithItsTimestampUntilAFreshBatteryArrives() {
+        val state = state(event(1, 100_000, 80.0, WearableMetric.BATTERY)).copy(publicId = source,
+            settings = Settings(role = Role.SHARER, wearable = true, wearableId = "watch"))
+        val live = WearableState(latest = listOf(LiveWearableValue(WearableMetric.HEART_RATE, 72.0, 200_000)))
+        val snapshot = wearableSnapshot(state, live, source)
+        assertEquals(LiveWearableValue(WearableMetric.BATTERY, 80.0, 100_000), snapshot.values.single { it.metric == WearableMetric.BATTERY })
+        val fresh = live.copy(latest = live.latest + LiveWearableValue(WearableMetric.BATTERY, 79.0, 210_000))
+        assertEquals(LiveWearableValue(WearableMetric.BATTERY, 79.0, 210_000),
+            wearableSnapshot(state, fresh, source).values.single { it.metric == WearableMetric.BATTERY })
+        assertFalse(wearableSnapshot(state.copy(settings = state.settings.copy(wearableId = "replacement")), live, source)
+            .values.any { it.metric == WearableMetric.BATTERY })
+    }
+
+    @Test fun liveContactLossStillHidesSavedPulseWhenMetricsAreMerged() {
+        val state = state(event(1, 100_000, 72.0)).copy(publicId = source,
+            settings = Settings(role = Role.SHARER, wearable = true, wearableId = "watch"))
+        val live = WearableState(latest = listOf(LiveWearableValue(WearableMetric.CONTACT, 0.0, 200_000)))
+        assertFalse(wearableSnapshot(state, live, source).values.any { it.metric == WearableMetric.HEART_RATE })
+    }
 }

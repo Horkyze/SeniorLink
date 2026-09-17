@@ -154,6 +154,15 @@ class HealthOverviewUiTest {
         screenshot("health-unknown-battery")
     }
 
+    @Test fun compactMissingBatteriesExplainHowToEnableSharing() {
+        val missing = state().copy(phoneBatteries = emptyList(), wearables = emptyList())
+        show { family.seniorlink.dashboard.DeviceBatteries(missing, source,
+            family.seniorlink.dashboard.wearableSnapshot(missing, WearableState(), source), now, compact = true) }
+        compose.onNodeWithText("No reading received.", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("No battery reading.", substring = true).performScrollTo().assertIsDisplayed()
+        screenshot("compact-battery-help")
+    }
+
     private fun show(content: @Composable () -> Unit) {
         compose.runOnUiThread {
             compose.activity.window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)

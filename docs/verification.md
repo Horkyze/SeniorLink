@@ -1,5 +1,119 @@
 # Verification
 
+## Release packaging — 0.1.11 (17 September 2026)
+
+- Version 0.1.11 (version code 12) passes all **41 core and 79 Android JVM
+  tests**, without failures or skips. Debug and instrumentation APK builds pass;
+  lint reports zero errors and 17 warnings.
+- **Fourteen final-APK instrumentation tests pass**, without skips, on the
+  Android 17 ARM64 emulator: live settings, backgrounded edits and deferred
+  location, phone-battery collection and delivery, battery/health UI, wearable
+  service lifecycle, native catch-up/access withdrawal and public discovery.
+- The local 0.1.10 APK matches the published release asset digest
+  `250ad5310efe52b85b9bfb743a0b389e860fa23a14146693171b6800408fbfa6`.
+  Both APK signatures verify with certificate SHA-256
+  `7e4f9088dfb6e1a7175ed42dc7a9d1f32717a21d28165cead7b6adfa04cbc302`.
+  Installing 0.1.10 followed by 0.1.11 using `adb install -r` succeeds.
+- All 12 native libraries are byte-identical to published 0.1.10. ABI and 16 KB
+  ELF/ZIP alignment checks pass. Six archive parts reconstruct the tested APK
+  byte for byte in an isolated temporary directory. SHA-256:
+  `568c1c6df51ccb11110f12617fece9b58ed3fd2bd6a5a48ed3f6d0aedaa6b7ca`.
+
+Commands performed:
+
+```sh
+. ./scripts/env.sh
+./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest
+python3 scripts/verify-apk.py
+adb install -r dist/SeniorLink-0.1.10-debug.apk
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+adb shell am instrument -w -r -e class family.seniorlink.LiveSettingsDeviceTest,family.seniorlink.PhoneBatteryServiceTest,family.seniorlink.HealthOverviewUiTest,family.seniorlink.WearableServiceTest,family.seniorlink.IrohDeviceTest,family.seniorlink.PublicDiscoveryTest family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+python3 scripts/package-pilot.py
+# Ran unpack-pilot.py in a temporary copy containing only SHA256SUMS and six parts.
+git diff --check
+```
+
+Protocol 3 remains compatible with 0.1.7–0.1.10; both phones need 0.1.11 for
+connection reuse. Physical-phone Wi-Fi performance, battery behavior and wearable
+compatibility remain on the acceptance checklist.
+
+## Battery visibility and live settings — source build (17 September 2026)
+
+- New sharing setup selects phone battery, unlock activity and location with an
+  explanation before pairing. Caregiver defaults collect nothing; SMS, wearable
+  and Telegram setup remain separate. Legacy JSON defaults and explicitly saved
+  choices are unchanged, so updating does not re-enable disabled features.
+- Settings can be saved while sharing. Collectors are replaced without changing
+  the sharing authorization or sync endpoint. Permission requests for proposed
+  settings happen before committing; denial retains the running configuration.
+  Pause cancels a pending edit and cannot be undone by a late permission callback.
+  The service observes saved settings independently of the editing Activity;
+  newly enabled background location is deferred when Android requires it.
+- Unsaved switches survive tab navigation and rotation. Compact battery cards
+  explain missing data and show charging state. A reconnect merges new wearable
+  metrics with saved metrics by timestamp, and the first supported battery
+  reading is saved promptly. Missing watch percentages are never inferred.
+- All **41 core and 79 Android JVM tests** pass. Debug/instrumentation builds,
+  lint and APK ABI/16 KB alignment checks pass. Fourteen selected instrumentation
+  tests passed on the Android 17 ARM64 emulator; after the final service observer
+  change, all five live-settings/battery/wearable service tests passed again.
+  Checks include actual Android battery sampling, dashboard display, delivery
+  through the production caregiver receiver, active feature changes, permission
+  denial, Pause, saved settings applied after backgrounding and deferred location.
+- Two additional fresh-install checks passed in a temporary emulator user:
+  default selected features and approval-triggered startup, plus the real Android
+  notification permission denial/grant flow. The temporary test user's app data
+  was reset between those checks; the original emulator user's data was not used
+  for these fresh-install scenarios. Lint reports zero errors and 17 warnings.
+- Visually inspected the compact missing-battery cards with synthetic data at
+  normal font size. These checks do not establish physical watch compatibility
+  or manufacturer-specific service behavior. No release was published.
+
+Commands performed include:
+
+```sh
+. ./scripts/env.sh
+./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest
+./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=family.seniorlink.LiveSettingsDeviceTest,family.seniorlink.PhoneBatteryServiceTest,family.seniorlink.HealthOverviewUiTest,family.seniorlink.WearableServiceTest,family.seniorlink.IrohDeviceTest,family.seniorlink.PublicDiscoveryTest
+./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=family.seniorlink.LiveSettingsDeviceTest,family.seniorlink.PhoneBatteryServiceTest,family.seniorlink.WearableServiceTest
+python3 scripts/verify-apk.py
+git diff --check
+# In a temporary emulator user with a fresh app installation for each check:
+adb shell am instrument --user 10 -w -r -e class family.seniorlink.DefaultSharingPermissionTest family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+adb shell am instrument --user 10 -w -r -e class family.seniorlink.MonitoringUiTest family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+## Faster retained-history sync — source build (17 September 2026)
+
+- History catch-up reuses its encrypted connection across 20-record pages without
+  an inter-page sleep. Each page retains its timeout, approval/Pause checks,
+  validation and durable save before ACK. Polling intervals are unchanged.
+- Wire version, payloads and ALPN remain protocol 3. Older caregivers can close
+  after each page; new caregivers reconnect from their saved cursor when an older
+  sharing phone closes. Both phones need the source update for connection reuse.
+- All 40 core and 76 Android JVM tests pass. Seven new catch-up tests cover 10,000
+  events, legacy-style connection closure, reconnect failures, page timeouts,
+  histories lasting over 35 seconds, cancellation and failed persistence.
+- Four native instrumentation tests pass on the Android 17 ARM64 emulator:
+  multi-page connection reuse, Pause/revocation during catch-up, independent
+  caregivers, older client behavior, Keystore persistence and public discovery.
+  The synthetic 1,000-event loopback comparison measured **6,261 ms / 50
+  connections** for the old client pattern and **1,754 ms / one connection** for
+  reuse. These are emulator measurements, not physical-phone Wi-Fi results.
+- Debug/instrumentation builds, lint and APK ABI/16 KB alignment checks pass.
+  Native libraries and stored data formats are unchanged. No release was published.
+
+Commands performed:
+
+```sh
+. ./scripts/env.sh
+./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest
+./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=family.seniorlink.IrohDeviceTest,family.seniorlink.PublicDiscoveryTest
+python3 scripts/verify-apk.py
+git diff --check
+```
+
 ## Release packaging — 0.1.10 (17 September 2026)
 
 - Version 0.1.10 (version code 11) passes all **40 core and 69 Android JVM tests**,

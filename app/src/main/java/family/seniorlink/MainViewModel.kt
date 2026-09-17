@@ -14,6 +14,8 @@ import family.seniorlink.pairing.PairingController
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 data class ScreenState(
     val ready: Boolean = false,
@@ -33,6 +35,7 @@ data class ScreenState(
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     val app = application as SeniorApp
     val screen = MutableStateFlow(ScreenState())
+    val settingsDraft = MutableStateFlow<Settings?>(null)
     val pairing = PairingController(viewModelScope, app.store) { app.identity }
     val wearableScanner = family.seniorlink.wearable.WearableScanner(app)
     internal val activityBrowser = family.seniorlink.dashboard.ActivityBrowser(viewModelScope, app.store) { app.publicId }
@@ -40,8 +43,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var visible = false
     @Volatile private var inspectedLocationKey: Pair<String, Long>? = null
     val permissionRequest = MutableStateFlow<List<String>>(emptyList())
+    val savingSettings = MutableStateFlow(false)
+    @Volatile private var pendingSettings: Pair<Settings, String>? = null
     private var startRequested = false
     private var waitingForPermissions = false
+    private val refreshLock = Mutex()
 
     init {
         viewModelScope.launch {
@@ -65,7 +71,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private suspend fun refresh() {
+    private suspend fun refresh() = refreshLock.withLock {
         val current = withContext(Dispatchers.IO) {
             val peers = app.store.peers()
             val sources = if (app.store.settings.role == Role.SHARER) listOf(app.publicId) else peers.map { it.id }
@@ -80,6 +86,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 tokenSaved = app.secrets.read("telegram")?.isNotEmpty() == true,
             )
         }
+        val previous = screen.value.settings
+        settingsDraft.update { draft -> if (draft == null || draft == previous) current.settings else draft }
         screen.value = current.copy(message = screen.value.message)
     }
 
@@ -104,33 +112,67 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun chooseRole(role: Role) = action {
-        app.store.updateSettings(app.store.settings.copy(role = role), app.publicId)
+        if (app.store.settings.role == Role.UNSET) app.store.updateSettings(Settings.forNewRole(role), app.publicId)
     }
 
-    fun save(settings: Settings, token: String) = action {
-        check(!app.backgroundSession.enabled(Role.SHARER)) { "Pause monitoring before changing collection settings." }
-        require(!settings.sms || settings.smsSenders.lineSequence().any { it.isNotBlank() && it.trim() != "*" }) {
-            "Add at least one exact SMS sender before enabling SMS."
+    fun save(settings: Settings, token: String) {
+        if (savingSettings.value || waitingForPermissions) return
+        savingSettings.value = true
+        action {
+            try {
+                require(!settings.sms || settings.smsSenders.lineSequence().any { it.isNotBlank() && it.trim() != "*" }) {
+                    "Add at least one exact SMS sender before enabling SMS."
+                }
+                require(!settings.wearable || android.bluetooth.BluetoothAdapter.checkBluetoothAddress(settings.wearableAddress)) {
+                    "Choose a Bluetooth wearable before enabling wearable sharing."
+                }
+                require(!settings.wearable || family.seniorlink.wearable.BleAccess.supported(app)) {
+                    "Bluetooth LE is not available on this phone."
+                }
+                if (token.isNotBlank()) {
+                    require(Telegram.validToken(token.trim())) { "The Telegram bot token format is invalid." }
+                }
+                if (settings.telegram) {
+                    require(Telegram.validChat(settings.telegramChat.trim())) { "Enter a numeric chat ID or @channel name." }
+                    require(token.isNotBlank() || app.secrets.read("telegram")?.isNotEmpty() == true) { "Enter a bot token." }
+                }
+                val awaitingPermission = withContext(Dispatchers.Main.immediate) {
+                    val missing = MonitorService.missingPermissions(app, settings)
+                    if (app.backgroundSession.enabled(Role.SHARER) && missing.isNotEmpty()) {
+                        // Keep the saved configuration running until the proposed one is authorized.
+                        pendingSettings = settings to token
+                        waitingForPermissions = true
+                        permissionRequest.value = missing
+                        true
+                    } else false
+                }
+                if (awaitingPermission) return@action
+                val oldWearableAddress = app.store.settings.wearableAddress
+                synchronized(app.store) {
+                    if (token.isNotBlank()) app.secrets.write("telegram", token.trim().toByteArray())
+                    app.store.updateSettings(settings.copy(telegramChat = settings.telegramChat.trim()), app.publicId)
+                }
+                settingsDraft.value = app.store.settings
+                if (!settings.wearable || settings.wearableAddress != oldWearableAddress)
+                    app.wearableState.value = family.seniorlink.wearable.WearableState()
+                withContext(Dispatchers.Main.immediate) {
+                    // Applying settings must not undo a Pause, including one made during a permission dialog.
+                    if (app.backgroundSession.enabled(Role.SHARER)) {
+                        if (!visible && MonitorService.running.value) {
+                            // Existing foreground service can stop/start collectors even if Save
+                            // finished after onStop. New while-in-use location stays deferred.
+                            app.startService(Intent(monitorIntent).setAction(MonitorService.ACTION_RESUME))
+                        } else {
+                            startRequested = true
+                            continueStart()
+                        }
+                    }
+                }
+                message("Settings saved")
+            } finally {
+                if (pendingSettings == null) savingSettings.value = false
+            }
         }
-        require(!settings.wearable || android.bluetooth.BluetoothAdapter.checkBluetoothAddress(settings.wearableAddress)) {
-            "Choose a Bluetooth wearable before enabling wearable sharing."
-        }
-        require(!settings.wearable || family.seniorlink.wearable.BleAccess.supported(app)) {
-            "Bluetooth LE is not available on this phone."
-        }
-        if (token.isNotBlank()) {
-            require(Telegram.validToken(token.trim())) { "The Telegram bot token format is invalid." }
-        }
-        if (settings.telegram) {
-            require(Telegram.validChat(settings.telegramChat.trim())) { "Enter a numeric chat ID or @channel name." }
-            require(token.isNotBlank() || app.secrets.read("telegram")?.isNotEmpty() == true) { "Enter a bot token." }
-        }
-        if (token.isNotBlank()) app.secrets.write("telegram", token.trim().toByteArray())
-        val oldWearableAddress = app.store.settings.wearableAddress
-        app.store.updateSettings(settings.copy(telegramChat = settings.telegramChat.trim()), app.publicId)
-        if (!settings.wearable || settings.wearableAddress != oldWearableAddress)
-            app.wearableState.value = family.seniorlink.wearable.WearableState()
-        message("Settings saved")
     }
 
     fun showPairingQr(name: String) {
@@ -183,6 +225,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun permissionsUpdated() {
         waitingForPermissions = false
+        pendingSettings?.let { (settings, token) ->
+            pendingSettings = null
+            savingSettings.value = false
+            if (app.backgroundSession.enabled(Role.SHARER) && MonitorService.missingPermissions(app, settings).isNotEmpty()) {
+                message("Settings were not saved because a required permission was not granted. Sharing continues with your previous settings.")
+            } else save(settings, token)
+            return
+        }
         if (!app.backgroundSession.enabled(app.store.settings.role)) startRequested = false
         if (!startRequested) return
         if (MonitorService.missingPermissions(app, app.store.settings).isNotEmpty()) {
@@ -193,6 +243,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun pause() {
         startRequested = false
+        if (pendingSettings != null) savingSettings.value = false
+        pendingSettings = null
+        waitingForPermissions = false
         permissionRequest.value = emptyList()
         // Close the authorization gate before asynchronous service cleanup.
         MonitorService.pause(app)
@@ -225,7 +278,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             } catch (e: IllegalArgumentException) {
                 message(e.message ?: "Check your input")
             } catch (_: IllegalStateException) {
-                message("Action unavailable. Check permissions and pause monitoring before editing settings.")
+                message("Action unavailable. Check permissions and try saving again.")
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {

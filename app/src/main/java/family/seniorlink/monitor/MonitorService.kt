@@ -27,6 +27,8 @@ import family.seniorlink.wearable.BleAccess
 import family.seniorlink.wearable.WearableMonitor
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import java.io.FileDescriptor
 import java.io.PrintWriter
 
@@ -38,32 +40,15 @@ class MonitorService : Service() {
     private var registered = false
     private var locationManager: LocationManager? = null
     private var lastLocationRecorded = 0L
-    @Volatile private var wearableActive = false
+    @Volatile private var collectionGeneration = Any()
+    private var collectionJob: Job? = null
+    private var collectionSettings: Settings? = null
+    private var locationListener: LocationListener? = null
     private val unlockReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action == Intent.ACTION_USER_PRESENT && app.store.settings.unlock) {
                 scope.launch { app.record(Event(0, Kind.UNLOCK, System.currentTimeMillis()), token) }
             }
-        }
-    }
-    private val locationListener = object : LocationListener {
-        override fun onLocationChanged(location: Location) {
-            val elapsed = android.os.SystemClock.elapsedRealtime()
-            if (lastLocationRecorded != 0L && elapsed - lastLocationRecorded < 10 * 60_000) return
-            if (!location.hasAccuracy() || location.time <= 0) return
-            lastLocationRecorded = elapsed
-            scope.launch {
-                app.record(Event(
-                    0, Kind.LOCATION, location.time,
-                    latitude = location.latitude, longitude = location.longitude, accuracy = location.accuracy,
-                ), token)
-            }
-        }
-        @Suppress("OVERRIDE_DEPRECATION")
-        override fun onStatusChanged(provider: String?, status: Int, extras: android.os.Bundle?) = Unit
-        override fun onProviderEnabled(provider: String) = Unit
-        override fun onProviderDisabled(provider: String) {
-            app.monitorStatus.value = "Monitoring active; location provider is disabled"
         }
     }
 
@@ -120,7 +105,8 @@ class MonitorService : Service() {
             BackgroundRecovery.clearNotice(this)
             locationDeferred.value = settings.role == Role.SHARER && settings.location && !locationAllowed
             if (active) {
-                if (settings.role == Role.SHARER && settings.location && locationAllowed && locationManager == null) startLocation()
+                if (settings.role == Role.SHARER && (collectionSettings != settings ||
+                        settings.location && locationAllowed && locationManager == null)) configureCollectors(settings, locationAllowed)
                 return START_STICKY
             }
             active = true
@@ -137,27 +123,7 @@ class MonitorService : Service() {
             // from a privileged non-system UID. NOT_EXPORTED drops those real unlocks.
             ContextCompat.registerReceiver(this, unlockReceiver, IntentFilter(Intent.ACTION_USER_PRESENT), ContextCompat.RECEIVER_EXPORTED)
             registered = true
-            if (settings.location && locationAllowed) startLocation()
-            if (settings.phoneBattery) scope.launch {
-                PhoneBatteryMonitor().run(
-                    enabled = { sessionEnabled() && app.store.settings.phoneBattery },
-                    read = { PhoneBatteryMonitor.read(this@MonitorService) },
-                    onReading = { battery -> app.record(Event(0, Kind.PHONE_BATTERY, System.currentTimeMillis(), phoneBattery = battery), token) },
-                )
-            }
-            if (settings.wearable) {
-                wearableActive = true
-                scope.launch {
-                    WearableMonitor({ address -> AndroidBleLink(this@MonitorService, address) }).run(
-                        settings.wearableAddress, settings.wearableName.ifBlank { "Wearable" },
-                        enabled = { wearableActive && sessionEnabled() && app.store.settings.wearable &&
-                            app.store.settings.wearableAddress == settings.wearableAddress },
-                        onState = { if (wearableActive && running.value) app.wearableState.value = it },
-                        onSummary = { summary, at -> app.record(Event(0, Kind.WEARABLE, at, wearable = summary), token) },
-                        deviceId = settings.wearableId,
-                    )
-                }
-            }
+            configureCollectors(settings, locationAllowed)
             scope.launch {
                 while (isActive) {
                     try {
@@ -165,10 +131,12 @@ class MonitorService : Service() {
                             waiting = { app.monitorStatus.value = "Collecting locally; waiting for network or Android sleep to end" },
                         ) {
                             coroutineScope {
-                                launch { if (settings.telegram) Telegram.run(app) }
+                                launch { Telegram.run(app) }
                                 while (isActive && sessionEnabled()) {
                                     try {
-                                        IrohSync.serve(app.identity, app.store, ::sessionEnabled) { app.monitorStatus.value = it }
+                                        IrohSync.serve(app.identity, app.store, ::sessionEnabled) {
+                                            if (sessionEnabled()) app.monitorStatus.value = it
+                                        }
                                     } catch (e: CancellationException) { throw e }
                                     catch (_: Exception) { app.monitorStatus.value = "Collecting locally; sharing connection will retry" }
                                     delay(15_000)
@@ -181,6 +149,16 @@ class MonitorService : Service() {
                         app.monitorStatus.value = "Collecting locally; sharing connection will retry"
                     }
                     delay(15_000)
+                }
+            }
+            // Saved settings also apply if the editing Activity closes before it
+            // can dispatch its visible resume command. This path cannot grant a
+            // new while-in-use location session from the background.
+            scope.launch(Dispatchers.Main.immediate) {
+                app.store.changes.map { app.store.settings }.distinctUntilChanged().collect { current ->
+                    if (sessionEnabled() && collectionSettings != current) {
+                        startService(Intent(this@MonitorService, MonitorService::class.java).setAction(ACTION_RESUME))
+                    }
                 }
             }
             watchPermissions()
@@ -197,6 +175,66 @@ class MonitorService : Service() {
 
     private fun sessionEnabled() = running.value && sessionToken === token && app.backgroundSession.enabled(Role.SHARER)
 
+    /** Replace collectors without changing saved Sharing authorization or the sync endpoint. */
+    private fun configureCollectors(settings: Settings, locationAllowed: Boolean) {
+        val generation = Any()
+        collectionGeneration = generation
+        collectionSettings = settings
+        locationListener?.let { locationManager?.removeUpdates(it) }
+        locationListener = null
+        locationManager = null
+        lastLocationRecorded = 0L
+        val previous = collectionJob
+        collectionJob = scope.launch(Dispatchers.Main.immediate) {
+            // Rapid saves still wait for the whole previous replacement chain to close.
+            withContext(NonCancellable) { previous?.cancelAndJoin() }
+            currentCoroutineContext().ensureActive()
+            if (collectionGeneration !== generation || !sessionEnabled()) return@launch
+            try {
+                if (settings.location && locationAllowed) startLocation(generation)
+                coroutineScope {
+                    if (settings.phoneBattery) launch(Dispatchers.IO) {
+                        PhoneBatteryMonitor().run(
+                            enabled = { collecting(generation) && app.store.settings.phoneBattery },
+                            read = { PhoneBatteryMonitor.read(this@MonitorService) },
+                            onReading = { battery -> record(generation, Event(0, Kind.PHONE_BATTERY,
+                                System.currentTimeMillis(), phoneBattery = battery)) },
+                        )
+                    }
+                    if (settings.wearable) launch(Dispatchers.IO) {
+                        WearableMonitor({ address -> AndroidBleLink(this@MonitorService, address) }).run(
+                            settings.wearableAddress, settings.wearableName.ifBlank { "Wearable" },
+                            enabled = { collecting(generation) && app.store.settings.wearable &&
+                                app.store.settings.wearableAddress == settings.wearableAddress },
+                            onState = { state -> synchronized(app.store) {
+                                val current = app.store.settings
+                                if (collecting(generation) && current.wearable && current.wearableId == settings.wearableId &&
+                                    current.wearableAddress == settings.wearableAddress) app.wearableState.value = state
+                            } },
+                            onSummary = { summary, at -> record(generation, Event(0, Kind.WEARABLE, at, wearable = summary)) },
+                            deviceId = settings.wearableId,
+                        )
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: SecurityException) {
+                pause(app)
+                app.monitorStatus.value = "Sharing paused because a required permission was withdrawn"
+            } catch (_: Exception) {
+                collectionSettings = null
+                app.monitorStatus.value = "Could not apply collection settings. Open SeniorLink and save again."
+            }
+        }
+    }
+
+    private fun collecting(generation: Any) = collectionGeneration === generation && sessionEnabled()
+
+    private fun record(generation: Any, event: Event) = synchronized(app.store) {
+        if (collecting(generation) && (event.kind != Kind.WEARABLE ||
+                event.wearable?.deviceId == app.store.settings.wearableId)) app.record(event, token)
+    }
+
     private fun watchPermissions() {
         scope.launch {
             while (isActive) {
@@ -210,7 +248,7 @@ class MonitorService : Service() {
     }
 
     @Suppress("MissingPermission")
-    private fun startLocation() {
+    private fun startLocation(generation: Any) {
         val manager = getSystemService(LocationManager::class.java)
         locationManager = manager
         val provider = when {
@@ -224,12 +262,34 @@ class MonitorService : Service() {
             app.monitorStatus.value = "Monitoring active; enable location in Android settings"
             return
         }
-        manager.requestLocationUpdates(provider, 15 * 60_000L, 0f, locationListener, Looper.getMainLooper())
+        val listener = object : LocationListener {
+            override fun onLocationChanged(location: Location) {
+                if (!collecting(generation)) return
+                val elapsed = android.os.SystemClock.elapsedRealtime()
+                if (lastLocationRecorded != 0L && elapsed - lastLocationRecorded < 10 * 60_000) return
+                if (!location.hasAccuracy() || location.time <= 0) return
+                lastLocationRecorded = elapsed
+                scope.launch {
+                    record(generation, Event(
+                        0, Kind.LOCATION, location.time,
+                        latitude = location.latitude, longitude = location.longitude, accuracy = location.accuracy,
+                    ))
+                }
+            }
+            @Suppress("OVERRIDE_DEPRECATION")
+            override fun onStatusChanged(provider: String?, status: Int, extras: android.os.Bundle?) = Unit
+            override fun onProviderEnabled(provider: String) = Unit
+            override fun onProviderDisabled(provider: String) {
+                app.monitorStatus.value = "Monitoring active; location provider is disabled"
+            }
+        }
+        locationListener = listener
+        manager.requestLocationUpdates(provider, 15 * 60_000L, 0f, listener, Looper.getMainLooper())
     }
 
     override fun onDestroy() {
         // A cancelled old service must never publish into a newly started collection session.
-        wearableActive = false
+        collectionGeneration = Any()
         if (sessionToken === token) { running.value = false; sessionToken = null }
         if (active && app.store.settings.role == Role.CAREGIVER) {
             receiving.value = false
@@ -238,7 +298,7 @@ class MonitorService : Service() {
         locationDeferred.value = false
         scope.cancel()
         if (registered) unregisterReceiver(unlockReceiver)
-        locationManager?.removeUpdates(locationListener)
+        locationListener?.let { locationManager?.removeUpdates(it) }
         stopForeground(STOP_FOREGROUND_REMOVE)
         app.monitorStatus.value = if (app.backgroundSession.enabled(app.store.settings.role))
             "Monitoring interrupted — Android will be asked to resume; open the app if updates stay delayed"

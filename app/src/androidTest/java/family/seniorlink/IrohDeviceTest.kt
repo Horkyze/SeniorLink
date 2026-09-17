@@ -7,6 +7,7 @@ import family.seniorlink.core.*
 import family.seniorlink.data.Secrets
 import family.seniorlink.data.Store
 import family.seniorlink.net.IrohSync
+import family.seniorlink.net.catchUpConnection
 import kotlinx.coroutines.*
 import org.junit.Assert.*
 import org.junit.Test
@@ -17,6 +18,79 @@ import java.util.UUID
 @RunWith(AndroidJUnit4::class)
 class IrohDeviceTest {
     private val context get() = InstrumentationRegistry.getInstrumentation().targetContext
+
+    @Test fun retainedHistoryReusesOneConnectionAndRechecksAccessBetweenPages() = runBlocking(Dispatchers.IO) {
+        withTimeout(120_000) {
+            IrohAndroid.installAndroidContext(context.applicationContext)
+            val keys = List(3) { SecretKey.generate().use { it.toBytes() } }
+            val ids = keys.map { bytes -> SecretKey.fromBytes(bytes).use { it.public().use { id -> id.toString() } } }
+            val source = Store(context, "test-bulk-source-${UUID.randomUUID()}")
+            val inboxes = (1..2).map { i -> Store(context, "test-bulk-inbox-${UUID.randomUUID()}").apply {
+                updateSettings(Settings(role = Role.CAREGIVER), ids[i])
+                addPeer(ids[0], "Synthetic source", ids[i])
+            } }
+            source.updateSettings(Settings(role = Role.SHARER), ids[0])
+            (1..2).forEach { source.addPeer(ids[it], "Synthetic caregiver $it", ids[0]) }
+            val now = System.currentTimeMillis()
+            repeat(1000) { source.append(ids[0], Event(0, Kind.CHECK_IN, now + it), now) }
+            val endpoint = Endpoint.bind(EndpointOptions(secretKey = keys[0], bindAddr = "127.0.0.1:0",
+                alpns = listOf(Wire.ALPN)))
+            val addr = EndpointAddr(endpoint.id(), null, endpoint.boundSockets())
+            val clients = keys.drop(1).map { key -> Endpoint.bind(EndpointOptions(secretKey = key, bindAddr = "127.0.0.1:0")) }
+            val enabled = java.util.concurrent.atomic.AtomicBoolean(true)
+            val server = launch { IrohSync.serveEndpoint(endpoint, source, enabled::get, {}) }
+            try {
+                // The pre-optimization client pattern also proves old caregivers still work.
+                var oldConnections = 0
+                val oldStart = android.os.SystemClock.elapsedRealtime()
+                do {
+                    val connection = clients[0].connect(addr, Wire.ALPN)
+                    val more = try {
+                        oldConnections++
+                        catchUpPage(ids[0], inboxes[0], IrohSync.Session(connection), now)
+                    } finally { connection.close(0, byteArrayOf()); connection.close() }
+                    if (more) delay(100)
+                } while (more)
+                val oldMs = android.os.SystemClock.elapsedRealtime() - oldStart
+                assertEquals(50, oldConnections)
+
+                val newStart = android.os.SystemClock.elapsedRealtime()
+                val connection = clients[1].connect(addr, Wire.ALPN)
+                try {
+                    assertFalse(catchUpConnection(ids[0], inboxes[1], IrohSync.Session(connection)))
+                } finally { connection.close(0, byteArrayOf()); connection.close() }
+                val newMs = android.os.SystemClock.elapsedRealtime() - newStart
+                inboxes.forEach { assertEquals(1000L, it.cursor(ids[0])) }
+                assertEquals(1000L, source.peers().first { it.id == ids[2] }.cursor)
+                println("Synthetic 1000-event loopback catch-up: old=$oldMs ms / $oldConnections connections; reused=$newMs ms / 1 connection")
+
+                // Pause and revocation must also stop a connection already catching up.
+                repeat(41) { source.append(ids[0], Event(0, Kind.CHECK_IN, now + it), now) }
+                for (revoke in listOf(false, true)) {
+                    val active = clients[1].connect(addr, Wire.ALPN)
+                    try {
+                        val session = IrohSync.Session(active)
+                        assertTrue(catchUpPage(ids[0], inboxes[1], session, now))
+                        if (revoke) source.removePeer(ids[2]) else enabled.set(false)
+                        var denied = false
+                        try { withTimeout(5_000) { session.pull(inboxes[1].cursor(ids[0])) } }
+                        catch (_: Exception) { denied = true }
+                        assertTrue("Access remained open between history pages", denied)
+                    } finally {
+                        active.close(0, byteArrayOf()); active.close()
+                        enabled.set(true)
+                    }
+                }
+                assertEquals(1040L, inboxes[1].cursor(ids[0]))
+            } finally {
+                clients.forEach { it.shutdown(); it.close() }
+                server.cancelAndJoin()
+                addr.close()
+                source.close()
+                inboxes.forEach { it.close() }
+            }
+        }
+    }
 
     @Test fun nativeTransportCatchesUpTwoCaregiversAndRejectsUnapprovedPhones() = runBlocking(Dispatchers.IO) {
         withTimeout(120_000) {

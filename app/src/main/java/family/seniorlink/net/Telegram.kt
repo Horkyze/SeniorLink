@@ -19,19 +19,24 @@ object Telegram {
 
     suspend fun run(app: SeniorApp) {
         while (currentCoroutineContext().isActive) {
-            val settings = app.store.settings
-            if (settings.telegram && MonitorService.running.value) {
-                val job = app.store.nextTelegram(System.currentTimeMillis())
-                if (job != null) {
-                    val token = app.secrets.read("telegram")?.toString(Charsets.UTF_8).orEmpty()
-                    val result = send(token, settings.telegramChat, describe(job.event))
-                    app.telegramStatus.value = result.status
-                    val retry = if (result.success) null else System.currentTimeMillis() +
-                        (result.retrySeconds ?: min(3600, 30L shl job.attempts.coerceAtMost(7))) * 1000
-                    app.store.finishTelegram(job, retry)
-                    delay(1000)
-                    continue
-                }
+            // Live settings edits must not mix an old destination with a new bot token.
+            val delivery = synchronized(app.store) {
+                val settings = app.store.settings
+                if (settings.telegram && MonitorService.running.value)
+                    app.store.nextTelegram(System.currentTimeMillis())?.let { job ->
+                        Triple(job, settings.telegramChat, app.secrets.read("telegram")?.toString(Charsets.UTF_8).orEmpty())
+                    }
+                else null
+            }
+            if (delivery != null) {
+                val (job, chat, token) = delivery
+                val result = send(token, chat, describe(job.event))
+                app.telegramStatus.value = result.status
+                val retry = if (result.success) null else System.currentTimeMillis() +
+                    (result.retrySeconds ?: min(3600, 30L shl job.attempts.coerceAtMost(7))) * 1000
+                app.store.finishTelegram(job, retry)
+                delay(1000)
+                continue
             }
             delay(15_000)
         }

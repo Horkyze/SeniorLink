@@ -27,6 +27,12 @@ data class Settings(
     val wearableName: String = "",
     val wearableId: String = "",
 ) {
+    companion object {
+        /** Setup defaults only; legacy decoding must preserve missing/disabled choices. */
+        fun forNewRole(role: Role) = Settings(role = role,
+            phoneBattery = role == Role.SHARER, unlock = role == Role.SHARER, location = role == Role.SHARER)
+    }
+
     fun allows(kind: Kind): Boolean = when (kind) {
         Kind.UNLOCK -> unlock
         Kind.LOCATION -> location

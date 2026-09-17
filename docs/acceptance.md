@@ -5,6 +5,10 @@ The emulator tests do not establish manufacturer-specific battery behavior.
 
 ## Installation and consent
 
+- In 0.1.11, a new sharing setup selects phone battery, unlock
+  activity and location and explains these choices before pairing. Verify that
+  caregiver mode still collects nothing, and updates preserve existing on/off
+  choices. Missing fields from old saved settings must not enable new collection.
 - Install the same APK on all three phones; record Android versions and CPU ABIs.
 - Choose sharing mode only on the grandfather's phone. Verify that caregiver mode
   requests no location, SMS or notification permissions and starts no service.
@@ -16,6 +20,26 @@ The emulator tests do not establish manufacturer-specific battery behavior.
 - Withdrawing a feature removes its retained local events and queued Telegram output.
 - Remove one caregiver during a connection; subsequent access must stop. Copies
   already delivered to that phone cannot be recalled.
+
+## Settings while sharing — 0.1.11
+
+- With Sharing on, enable phone battery and save. A timestamped reading should
+  appear promptly and reach an approved caregiver without toggling Sharing off/on.
+  Disable it and save; retained local battery events must be removed. Repeat
+  enable/disable and confirm collection resumes without duplicate collector jobs.
+- Change location and unlock activity while sharing. Verify location permissions
+  are requested before an active configuration changes. Deny a new permission:
+  previous settings and sharing must continue. Grant it and confirm the selected
+  feature starts. Disabling location must remove location updates.
+- Pause while a permission request is pending. Saving or a late permission reply
+  must not turn Sharing back on or leave the Save button disabled indefinitely.
+- Edit a switch, leave Settings, return and rotate the screen. The unsaved choice
+  should remain. Save it, restart/update the app and check the persisted choice.
+- Change the selected wearable while sharing. Old-device callbacks must not
+  restore previous-device readings. A saved watch-battery value should retain its
+  timestamp while the same device reconnects and sends heart rate first.
+- Inspect missing-battery guidance on both roles at normal and large text sizes.
+  Unsupported watch batteries remain Unknown; no percentage is inferred.
 
 ## In-app QR pairing
 
@@ -40,6 +64,11 @@ The emulator tests do not establish manufacturer-specific battery behavior.
 
 ## Three-phone catch-up
 
+- With a large retained history, time initial catch-up on the same Wi-Fi and on
+  separate networks. Record the event count, phone models and app versions; do
+  not infer a direct network path from physical proximity. Repeat with only one
+  phone updated to check protocol-3 compatibility. During catch-up, test Pause,
+  peer removal and a network interruption; restart must use saved progress.
 - Keep caregiver B closed. Generate several manual check-ins and unlocks while A
   is open. A should receive them without B.
 - Close A, open B, and verify B catches up independently without duplicate events.

@@ -115,6 +115,26 @@ class WearableMonitorTest {
         assertTrue(state.status.contains("permission was revoked"))
     }
 
+    @Test fun `first battery notification is saved immediately even after heart rate`() = runTest {
+        val notifyingBattery = battery.copy(properties = 16)
+        val link = FakeLink(listOf(hr, notifyingBattery))
+        val saved = mutableListOf<WearableSummary>()
+        val job = launch {
+            WearableMonitor({ link }, { 1000 + testScheduler.currentTime }).run("AA:BB:CC:DD:EE:FF", "Test watch",
+                { true }, {}, { data, _ -> saved += data })
+        }
+        runCurrent()
+        link.send(hr, 6, 72); runCurrent()
+        assertEquals(1, saved.size)
+        link.send(notifyingBattery, 80); runCurrent()
+        assertEquals(80.0, saved.last().metrics.single { it.metric == WearableMetric.BATTERY }.latest, 0.0)
+        assertEquals(2, saved.size)
+        // Later notifications continue to use bounded summaries.
+        link.send(notifyingBattery, 79); runCurrent()
+        assertEquals(2, saved.size)
+        job.cancelAndJoin()
+    }
+
     private inner class FakeLink(private val attributes: List<BleAttribute>) : BleLink {
         override val values = Channel<BleValue>(256)
         val reads = mutableListOf<BleAttribute>()

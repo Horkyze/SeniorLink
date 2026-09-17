@@ -37,6 +37,7 @@ class WearableMonitor(
         val accumulator = WearableAccumulator(name, deviceId)
         var backoff = retryMs
         var firstReading = true
+        var firstBattery = true
         val lastSaved = AtomicLong(0)
 
         fun update(change: (WearableState) -> WearableState) = synchronized(guard) {
@@ -68,7 +69,11 @@ class WearableMonitor(
                 issues = reading.note?.let { note -> (it.issues + note).distinct().takeLast(20) } ?: it.issues,
             ) }
             // Send the first actual reading promptly; subsequent readings are summarized without flooding the feed.
-            if (firstReading && reading.values.any { it.metric != WearableMetric.BATTERY }) { firstReading = false; flush() }
+            val firstMeasurement = firstReading && reading.values.any { it.metric != WearableMetric.BATTERY }
+            val firstBatteryReading = firstBattery && reading.values.any { it.metric == WearableMetric.BATTERY }
+            if (firstMeasurement) firstReading = false
+            if (firstBatteryReading) firstBattery = false
+            if (firstMeasurement || firstBatteryReading) flush()
         }
 
         try {

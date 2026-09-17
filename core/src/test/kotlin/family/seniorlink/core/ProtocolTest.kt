@@ -12,6 +12,18 @@ class ProtocolTest {
     private val event = Event(1, Kind.UNLOCK, 100)
     private val batch = Batch(source = source, through = 1, latest = 1, earliest = 1, events = listOf(event))
 
+    @Test fun `new sharing setup selects basic features without changing legacy choices`() {
+        val fresh = Settings.forNewRole(Role.SHARER)
+        assertTrue(fresh.phoneBattery && fresh.unlock && fresh.location)
+        assertFalse(fresh.sms || fresh.smsBodies || fresh.wearable || fresh.telegram)
+        val caregiver = Settings.forNewRole(Role.CAREGIVER)
+        assertFalse(caregiver.phoneBattery || caregiver.unlock || caregiver.location)
+        val legacy = Wire.json.decodeFromString<Settings>("{\"role\":\"SHARER\"}")
+        assertFalse(legacy.phoneBattery || legacy.unlock || legacy.location)
+        val explicitOff = fresh.copy(phoneBattery = false, unlock = false, location = false)
+        assertEquals(explicitOff, Wire.decode<Settings>(Wire.encode(explicitOff), Wire.MAX_RESPONSE))
+    }
+
     @Test fun `phone battery is opt in validated and uses a new protocol`() {
         assertFalse(Settings().allows(Kind.PHONE_BATTERY))
         assertTrue(Settings(phoneBattery = true).allows(Kind.PHONE_BATTERY))

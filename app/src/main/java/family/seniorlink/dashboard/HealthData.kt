@@ -25,8 +25,12 @@ internal fun wearableSnapshot(state: ScreenState, live: WearableState, source: S
     val deviceEvents = events.filter { it.event.wearable?.deviceId == deviceId }
     val metrics = deviceEvents.flatMap { it.event.wearable?.metrics.orEmpty() }
     val latest = metrics.groupBy { it.metric }.mapValues { (_, values) -> values.maxBy { it.lastAt } }
-    val candidates = if (sharer && allowed && state.settings.wearable && live.latest.isNotEmpty()) live.latest
-        else latest.values.map { LiveWearableValue(it.metric, it.latest, it.lastAt) }
+    val saved = latest.values.map { LiveWearableValue(it.metric, it.latest, it.lastAt) }
+    // A reconnect may supply heart rate before battery. Keep other saved metrics
+    // with their original timestamps instead of replacing the entire snapshot.
+    val candidates = if (sharer && allowed && state.settings.wearable)
+        (saved + live.latest).groupBy { it.metric }.values.map { readings -> readings.maxBy { it.receivedAt } }
+        else saved
     val lostContactAt = candidates.firstOrNull { it.metric == WearableMetric.CONTACT && it.value == 0.0 }?.receivedAt
     val values = candidates.filterNot { lostContactAt != null && it.receivedAt <= lostContactAt &&
         it.metric in setOf(WearableMetric.HEART_RATE, WearableMetric.RR_INTERVAL) }
