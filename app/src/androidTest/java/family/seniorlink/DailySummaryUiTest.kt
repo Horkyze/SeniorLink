@@ -4,6 +4,8 @@ import android.graphics.Bitmap
 import android.os.Build
 import android.view.WindowManager
 import android.view.inspector.WindowInspector
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.lifecycle.ViewModelProvider
@@ -72,6 +74,12 @@ class DailySummaryUiTest {
             compose.waitUntil(10_000) { model.activityBrowser.state.value.day?.records?.size == 4 }
             compose.onNodeWithText("8 recorded updates").assertExists()
             compose.onNodeWithText("Recorded heart rate").assertExists()
+            val chart = compose.onNode(hasTestTag("heart-graph") and SemanticsMatcher.keyIsDefined(SemanticsProperties.StateDescription))
+            chart.performTouchInput {
+                swipe(Offset(width * 0.2f, height * 0.5f), Offset(width * 0.8f, height * 0.5f), 400)
+            }
+            assertTrue(chart.fetchSemanticsNode().config[SemanticsProperties.StateDescription].contains("Selected:"))
+            compose.onNodeWithTag("heart-graph-selection").assert(hasText("bpm", substring = true))
             screenshot("daily-summary-sheet")
             compose.onNodeWithTag("activity-records").performScrollToNode(hasText("View all 8 updates"))
             compose.onNodeWithText("View all 8 updates").performClick()

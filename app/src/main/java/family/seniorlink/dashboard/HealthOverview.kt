@@ -1,12 +1,10 @@
 package family.seniorlink.dashboard
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -18,9 +16,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -37,8 +33,6 @@ import kotlinx.coroutines.delay
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import kotlin.math.ceil
-import kotlin.math.floor
 import kotlin.math.roundToInt
 
 @Composable
@@ -83,7 +77,7 @@ internal fun HealthOverview(
             }
         }
         if (!sharer && state.peers.isEmpty()) Text("Connect a family phone in Phones to see shared readings.")
-        HeartRateCard(snapshot, now)
+        key(source, snapshot.events.firstOrNull()?.event?.wearable?.deviceId) { HeartRateCard(snapshot, now) }
         Text("Device batteries", Modifier.padding(top = 4.dp), style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold, color = Calm.Ink)
         DeviceBatteries(state, source, snapshot, now)
@@ -127,7 +121,7 @@ internal fun HeartRateCard(snapshot: WearableSnapshot, now: Long) {
             if (points.isEmpty()) {
                 Text("No recorded heart-rate readings in the last ${if (hours == 1) "hour" else "24 hours"}.",
                     modifier = Modifier.padding(vertical = 20.dp), style = MaterialTheme.typography.bodyMedium)
-            } else HeartGraph(points, start, now, Calm.Chart)
+            } else key(hours) { HeartGraph(points, start, now, Calm.Chart, height = 160, interactive = true) }
             FlowRow(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 listOf(1 to "1 hour", 24 to "24 hours").forEach { (value, label) ->
                     Surface(shape = RoundedCornerShape(10.dp), color = if (hours == value) Color.White else Color.Transparent) {
@@ -141,63 +135,6 @@ internal fun HeartRateCard(snapshot: WearableSnapshot, now: Long) {
                 }
             }
         }
-    }
-}
-
-@Composable
-internal fun HeartGraph(points: List<HeartPoint>, start: Long, end: Long, accent: Color, height: Int = 124, labels: Boolean = true) {
-    val low = (floor(points.minOf { it.bpm } / 10) * 10 - 10).coerceAtLeast(0.0)
-    val high = maxOf(ceil(points.maxOf { it.bpm } / 10) * 10, low + 20)
-    val grid = Calm.Line
-    val description = "Heart-rate graph, ${points.size} saved readings. " +
-        "${formatTime(points.first().at)} to ${formatTime(points.last().at)}. " +
-        "Lowest ${points.minOf { it.bpm }.roundToInt()}, highest ${points.maxOf { it.bpm }.roundToInt()} beats per minute."
-    Row(Modifier.fillMaxWidth().height(height.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Column(Modifier.fillMaxHeight(), verticalArrangement = Arrangement.SpaceBetween) {
-            Text(high.toInt().toString(), style = MaterialTheme.typography.labelSmall)
-            Text(((high + low) / 2).toInt().toString(), style = MaterialTheme.typography.labelSmall)
-            Text(low.toInt().toString(), style = MaterialTheme.typography.labelSmall)
-        }
-        Canvas(Modifier.weight(1f).fillMaxHeight().padding(vertical = 6.dp).semantics { contentDescription = description }) {
-            val inset = 4.dp.toPx()
-            fun position(p: HeartPoint) = Offset(
-                inset + ((p.at - start).toDouble() / (end - start) * (size.width - inset * 2)).toFloat(),
-                inset + ((high - p.bpm) / (high - low) * (size.height - inset * 2)).toFloat(),
-            )
-            listOf(inset, size.height / 2, size.height - inset).forEach { y ->
-                drawLine(grid, Offset(0f, y), Offset(size.width, y), 1.dp.toPx())
-            }
-            // Fill each uninterrupted run independently, so the area never bridges missing readings.
-            val runs = mutableListOf<MutableList<Offset>>()
-            points.forEach { point ->
-                if (runs.isEmpty() || point.breakBefore) runs += mutableListOf<Offset>()
-                runs.last() += position(point)
-            }
-            runs.filter { it.size > 1 }.forEach { run ->
-                val area = Path().apply {
-                    moveTo(run.first().x, size.height - inset)
-                    run.forEach { lineTo(it.x, it.y) }
-                    lineTo(run.last().x, size.height - inset)
-                    close()
-                }
-                drawPath(area, accent.copy(alpha = 0.07f))
-            }
-            points.forEachIndexed { index, point ->
-                val at = position(point)
-                if (index > 0 && !point.breakBefore) drawLine(accent, position(points[index - 1]), at, 2.dp.toPx(), StrokeCap.Round)
-                drawCircle(accent, if (points.size < 60) 2.5.dp.toPx() else 1.5.dp.toPx(), at)
-            }
-        }
-    }
-    if (!labels) return
-    val fullDay = end - start >= 86_400_000
-    val formatter = remember(fullDay) {
-        DateTimeFormatter.ofPattern(if (fullDay) "d MMM\nHH:mm" else "HH:mm").withZone(ZoneId.systemDefault())
-    }
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(formatter.format(Instant.ofEpochMilli(start)), Modifier.weight(1f), style = MaterialTheme.typography.labelSmall)
-        Text("Time on phone", Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.Center)
-        Text(formatter.format(Instant.ofEpochMilli(end)), Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, textAlign = TextAlign.End)
     }
 }
 

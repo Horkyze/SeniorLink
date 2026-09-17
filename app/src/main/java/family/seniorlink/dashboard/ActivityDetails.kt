@@ -83,7 +83,10 @@ internal fun ActivityDetails(screen: ScreenState, activity: ActivityState, sourc
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Recorded heart rate", fontWeight = FontWeight.SemiBold)
                         Text(snapshot.name, style = MaterialTheme.typography.bodySmall)
-                        HeartGraph(points, points.first().at, maxOf(points.first().at + 60_000, points.last().at), Calm.Chart, height = 90)
+                        key(source, date, snapshot.events.firstOrNull()?.event?.wearable?.deviceId) {
+                            HeartGraph(points, points.first().at, maxOf(points.first().at + 60_000, points.last().at),
+                                Calm.Chart, height = 160, interactive = true)
+                        }
                         if (total > 1000) Text("Chart uses the latest 1,000 saved wearable updates for this day.", style = MaterialTheme.typography.bodySmall)
                     }
                 }

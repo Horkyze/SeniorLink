@@ -1,5 +1,83 @@
 # Verification
 
+## Release packaging — 0.1.10 (17 September 2026)
+
+- Version 0.1.10 (version code 11) passes all **40 core and 69 Android JVM tests**,
+  with no failures or skips. Debug and instrumentation APK builds pass. Lint
+  reports zero errors and 17 warnings.
+- **Eight final-APK instrumentation tests pass**, with no skips, on the Android
+  17 / API 37 ARM64 emulator with 16 KB pages: three chart gesture tests, four
+  health-overview tests and the daily-summary workflow with sheet scrubbing.
+- Downloaded published 0.1.9 and verified its SHA-256 against its checksum manifest
+  and GitHub asset digest. Both APK signatures verify with certificate SHA-256
+  `7e4f9088dfb6e1a7175ed42dc7a9d1f32717a21d28165cead7b6adfa04cbc302`.
+  Installing published 0.1.9 and then 0.1.10 using `adb install -r` succeeds on
+  the test emulator. This does not establish physical family-device behavior.
+- All 12 native libraries are byte-identical to published 0.1.9. ABI and 16 KB
+  ELF/ZIP alignment checks pass. Six archive parts reconstruct the tested APK
+  byte for byte in a temporary directory. SHA-256:
+  `250ad5310efe52b85b9bfb743a0b389e860fa23a14146693171b6800408fbfa6`.
+
+Commands included:
+
+```sh
+. ./scripts/env.sh
+./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest
+python3 scripts/verify-apk.py
+# Installed the downloaded 0.1.9 APK first, then updated in place:
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+adb shell am instrument -w -r -e class family.seniorlink.HeartGraphUiTest,family.seniorlink.HealthOverviewUiTest,family.seniorlink.DailySummaryUiTest -e seniorlink.dashboardFixture true family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+python3 scripts/package-pilot.py
+# Ran unpack-pilot.py in a temporary copy containing only the manifest and parts.
+git diff --check
+```
+
+Protocol 3 remains compatible with 0.1.7–0.1.9. Physical touch and TalkBack checks
+remain on the acceptance checklist. Earlier source-build checks below cover
+2× text size and visual review of synthetic chart screenshots.
+
+## Interactive heart-rate charts — source build (17 September 2026)
+
+- Expanded Wearable and daily-history charts support pinch zoom down to a
+  one-minute window, two-finger time panning, and one-finger tap/drag inspection.
+  The dotted marker selects an actual saved reading and displays its full local
+  date and time including seconds. Reset chart restores the original range.
+  Compact dashboard previews still open the daily-history sheet.
+- All **40 core and 69 Android JVM tests** pass, including four new tests for
+  zoom anchoring, pan/zoom limits, missing readings and a stable time window during
+  refresh. Debug and instrumentation APK builds pass. Lint reports zero errors
+  and 17 warnings. APK ABI and native ELF/ZIP alignment checks pass.
+- **Eight instrumentation tests pass with no skips** on the Android 17 / API 37
+  ARM64 emulator with 16 KB pages: three new chart gesture tests, four existing
+  health-overview tests and the daily-summary workflow. The daily-summary test
+  then passed again with an added assertion for scrubbing inside its preview
+  sheet. The three gesture tests also pass at 2× system text size.
+- Gesture checks cover actual timestamp/value selection, pinch, two-finger pan,
+  reset, selection removal when its reading disappears, and vertical scrolling
+  through the chart. Synthetic-data screenshots of the selected marker, zoomed
+  chart, daily-history sheet and large-text chart were visually reviewed.
+- Physical finger gestures on family phones and TalkBack behavior still need
+  the acceptance checks. No physical wearable compatibility was established.
+  These checks preceded the 0.1.10 release packaging above.
+
+Commands included:
+
+```sh
+. ./scripts/env.sh
+./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest
+python3 scripts/verify-apk.py
+./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=family.seniorlink.HeartGraphUiTest,family.seniorlink.HealthOverviewUiTest,family.seniorlink.DailySummaryUiTest -Pandroid.testInstrumentationRunnerArguments.seniorlink.dashboardFixture=true
+# After adding the sheet-scrubbing assertion, rebuilt and installed the test APK:
+./gradlew :app:assembleDebugAndroidTest
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+adb shell am instrument -w -r -e class family.seniorlink.DailySummaryUiTest -e seniorlink.dashboardFixture true family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+# Gesture tests also ran at font_scale 2.0; the original setting was restored.
+adb shell am instrument -w -r -e class family.seniorlink.HeartGraphUiTest family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+git diff --check
+```
+
 ## Release packaging — 0.1.9 (13 September 2026)
 
 - Version 0.1.9 (version code 10) passes all **40 core and 65 Android JVM tests**,

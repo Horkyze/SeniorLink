@@ -6,8 +6,8 @@ Caregivers open the same app on their own phones to see check-ins, recent phone
 activity, locations, selected SMS and readings from compatible wearables. Updates
 travel over an encrypted phone-to-phone connection; you don't need to run a server.
 
-**[Download the Android app](https://github.com/Horkyze/SeniorLink/releases/tag/v0.1.9)**
-· [Release notes](docs/releases/v0.1.9.md)
+**[Download the Android app](https://github.com/Horkyze/SeniorLink/releases/tag/v0.1.10)**
+· [Release notes](docs/releases/v0.1.10.md)
 · [Wearable setup](docs/wearables.md)
 · [Build from source](#building-and-contributing)
 
@@ -20,20 +20,26 @@ independently on their own phones.
 This is an early **family pilot**, not a medical device or emergency-response
 service. It does not send emergency alerts or guarantee continuous monitoring.
 
-## What's new in 0.1.9
+## What's new in 0.1.10
 
-Sharing and background receiving start automatically after an approved phone
-connection, with a visible notification and restart requests after interruptions
-or reboot. Small toggles in **Settings → Background updates** let you pause them.
-A saved pause stays in effect after reconnecting or adding another phone. Existing
-paired installations without a saved background preference adopt the default
-when opened. Individual collection features keep their own selected settings.
+The expanded **heart-rate charts** now support touch controls. Tap the dashboard's
+heart-rate card or wearable group to open the selected day's chart, or open
+**Wearable** for the one-hour or 24-hour view.
 
-The **Updates** dashboard now shows a daily summary: compact latest readings and
-batteries, followed by daily groups for check-ins, wearable updates, location and
-phone activity. Messages appear when records are available. Tap a group for a
-preview sheet, or **Open full history** for date/type filters and **Load earlier**.
-Counts include all retained records for the selected phone and day.
+- **Pinch to zoom** down to a one-minute window.
+- **Move two fingers** to browse earlier or later times.
+- **Tap or drag one finger** to move a dotted marker between saved readings. The
+  label shows the BPM and full recorded date and time, including seconds.
+- Tap **Reset chart** to return to the full time range.
+
+The marker snaps to actual saved readings; it does not fill in missing data.
+Vertical swipes still scroll the page. Chart accessibility actions support zoom,
+time movement and stepping through readings.
+
+The **Updates** dashboard continues to show compact latest readings and batteries,
+followed by daily groups. Tap a group for a preview, or **Open full history** for
+date/type filters and **Load earlier**. Sharing and background receiving start
+automatically after an approved phone connection; saved pauses remain in effect.
 
 ### Dashboard and batteries
 
@@ -54,7 +60,7 @@ the selected wearable exposes standard Bluetooth battery data; otherwise it show
 **Unknown**. One wearable is selected per sharing phone; caregivers can switch
 between family phones. Physical Galaxy Fit3 battery support is still unverified.
 
-Version 0.1.9 uses sync protocol 3 and can sync with 0.1.7 and 0.1.8. All paired
+Version 0.1.10 uses sync protocol 3 and can sync with 0.1.7–0.1.9. All paired
 phones must use **0.1.7 or newer**; 0.1.6 and older cannot sync with these versions. The
 published APK uses the same signing key as earlier releases; update in place to
 preserve identity, pairing and history.
@@ -65,7 +71,7 @@ You need **Android 8.0 or newer** on the sharing phone and every caregiver phone
 Both roles use the same APK (the Android installation file).
 
 1. **Install SeniorLink on each phone.** Open the release page above, download
-   **SeniorLink-0.1.9-debug.apk** from **Assets**, and open it.
+   **SeniorLink-0.1.10-debug.apk** from **Assets**, and open it.
    Android may ask you to allow installation from the browser or file app.
 2. **Choose each phone's role.** Your family member chooses **Share my information**;
    everyone receiving updates chooses **I'm a caregiver**.
@@ -97,9 +103,9 @@ when a sharing phone is connected. Turn it off to pause background receiving;
 opening the caregiver app still fetches updates. This does not collect any of
 the caregiver's own information.
 
-**Updating an existing installation?** Install 0.1.9; it can sync with 0.1.7 and
-0.1.8, but paired phones running 0.1.6 or older must also be updated. The published
-APK uses the same signing key as versions 0.1.0–0.1.8, so install it as an update
+**Updating an existing installation?** Install 0.1.10; it can sync with
+0.1.7–0.1.9, but paired phones running 0.1.6 or older must also be updated. The published
+APK uses the same signing key as versions 0.1.0–0.1.9, so install it as an update
 without uninstalling to keep pairing and history. Versions 0.1.3 onward check for
 updates when opened; 0.1.5 onward also offers **Settings → App updates → Check for updates**.
 If an older version's direct download is blocked, open the release page above
@@ -278,7 +284,7 @@ also be restored without an Android toolchain using Python 3:
 python3 scripts/unpack-pilot.py
 ```
 
-This reconstructs and checksum-verifies `dist/SeniorLink-0.1.9-debug.apk`.
+This reconstructs and checksum-verifies `dist/SeniorLink-0.1.10-debug.apk`.
 The archive parts are not themselves installable. Full APKs, signing material and
 build output remain ignored. CI builds an APK and uploads test reports; it does
 not publish a release automatically.

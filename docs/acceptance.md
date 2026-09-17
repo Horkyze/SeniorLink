@@ -104,7 +104,7 @@ The emulator tests do not establish manufacturer-specific battery behavior.
 
 ## Heart-rate graph and batteries
 
-- Install 0.1.9 on all paired phones. Verify in-place updates preserve pairing,
+- Install 0.1.10 on all paired phones. Verify in-place updates preserve pairing,
   settings, history and independent caregiver catch-up.
 - Enable Share phone battery only on the sharing phone, save and start. Compare
   its percentage and charging label with Android, then plug/unplug the charger
@@ -119,6 +119,14 @@ The emulator tests do not establish manufacturer-specific battery behavior.
 - Check the last-hour dashboard trend and selected-day wearable chart, a single
   sample, disconnected gaps, contact loss, stale readings and empty history.
   Check normal and large fonts on family phones.
+- In 0.1.10, open the wearable chart from the dashboard
+  or Wearable screen. Pinch to zoom, move two fingers to browse time, and drag one
+  finger horizontally to move the dotted marker. Confirm the value and full date/
+  time (including seconds) match a saved reading; gaps must not invent values.
+  Zoom reaches a one-minute window, and Reset chart restores the full range.
+- Check vertical page/sheet scrolling from the chart, zoom/pan at both time
+  boundaries, an empty zoomed window, and switching dates, phones and 1/24-hour
+  ranges. Check TalkBack's chart actions for zoom, time movement and readings.
 
 ## SMS and Telegram
 
