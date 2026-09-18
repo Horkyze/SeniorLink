@@ -45,7 +45,7 @@ internal fun DailyDashboard(
     val sharer = screen.settings.role == Role.SHARER
     val peer = screen.peers.firstOrNull { it.id == source }
     var choosingPhone by remember { mutableStateOf(false) }
-    val now = rememberReadingTime()
+    val now = rememberReadingTime(screen, live)
     val snapshot = remember(screen, live, source) { wearableSnapshot(screen, live, source) }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (!sharer && peer != null) Box {
@@ -135,12 +135,13 @@ private fun CompactHeart(snapshot: WearableSnapshot, now: Long, onClick: () -> U
         }
         if (LocalDensity.current.fontScale > 1.3f) Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             value()
-            if (points.isNotEmpty()) HeartGraph(points, now - 3_600_000, now, Calm.Chart, height = 60)
+            if (points.isNotEmpty()) ReadingGraph(points, now - 3_600_000, now, Calm.Chart, height = 60)
+            Text(if (points.isEmpty()) "No readings in the last hour" else "Last hour · Recorded trend", style = MaterialTheme.typography.labelSmall, color = Calm.Muted)
         } else Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) { value() }
             Column(Modifier.weight(1f)) {
-                if (points.isNotEmpty()) HeartGraph(points, now - 3_600_000, now, Calm.Chart, height = 55, labels = false)
-                Text(if (points.isEmpty()) "No readings in the last hour" else "Last hour · Saved trend", style = MaterialTheme.typography.labelSmall, color = Calm.Muted)
+                if (points.isNotEmpty()) ReadingGraph(points, now - 3_600_000, now, Calm.Chart, height = 55, labels = false)
+                Text(if (points.isEmpty()) "No readings in the last hour" else "Last hour · Recorded trend", style = MaterialTheme.typography.labelSmall, color = Calm.Muted)
             }
         }
     }

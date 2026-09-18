@@ -14,6 +14,7 @@ data class ActivityDay(
     val firstDate: LocalDate = date,
     val lastDate: LocalDate = date,
     val wearableRecords: List<StoredEvent> = emptyList(),
+    val batteryRecords: List<StoredEvent> = emptyList(),
 )
 
 /** Calendar boundaries, including 23/25-hour daylight-saving days. */

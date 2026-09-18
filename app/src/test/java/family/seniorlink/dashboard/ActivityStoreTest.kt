@@ -116,4 +116,24 @@ class ActivityStoreTest {
             assertNull(store.location(source, 1, now))
         }
     }
+    @Test fun batteryChartsKeepFullDayBeyondPreviewAndExcludeOtherDaysSourcesAndExpiredData() {
+        store().use { store ->
+            repeat(12) { index -> store.append(source, Event(0, Kind.PHONE_BATTERY, start + index * 300_000,
+                phoneBattery = PhoneBattery(80 - index, index < 3)), now) }
+            store.append(source, Event(0, Kind.PHONE_BATTERY, start - 1, phoneBattery = PhoneBattery(90)), now)
+            store.append(other, Event(0, Kind.PHONE_BATTERY, start + 1, phoneBattery = PhoneBattery(40)), now)
+            repeat(120) { store.append(source, Event(0, Kind.UNLOCK, start + it), now) }
+            assertEquals(13, store.phoneBatteries(source, now).size)
+            val day = store.activityDay(source, date, Kind.PHONE_BATTERY, 4, now, zone)
+            assertEquals(4, day.records.size)
+            assertEquals(12, day.batteryRecords.size)
+            assertEquals((69..80).toList(), day.batteryRecords.map { it.event.phoneBattery!!.percent })
+            assertTrue(store.phoneBatteries(source, now + Store.RETENTION_MS + 1).isEmpty())
+            assertTrue(store.activityDay(source, date, Kind.PHONE_BATTERY, 4, now + Store.RETENTION_MS + 1, zone).batteryRecords.isEmpty())
+            store.updateSettings(store.settings.copy(phoneBattery = false), source)
+            assertTrue(store.phoneBatteries(source, now).isEmpty())
+            assertTrue(store.activityDay(source, date, Kind.PHONE_BATTERY, 4, now, zone).batteryRecords.isEmpty())
+        }
+    }
+
 }

@@ -6,8 +6,8 @@ Caregivers open the same app on their own phones to see check-ins, recent phone
 activity, locations, selected SMS and readings from compatible wearables. Updates
 travel over an encrypted phone-to-phone connection; you don't need to run a server.
 
-**[Download the Android app](https://github.com/Horkyze/SeniorLink/releases/tag/v0.1.11)**
-· [Release notes](docs/releases/v0.1.11.md)
+**[Download the Android app](https://github.com/Horkyze/SeniorLink/releases/tag/v0.1.12)**
+· [Release notes](docs/releases/v0.1.12.md)
 · [Wearable setup](docs/wearables.md)
 · [Build from source](#building-and-contributing)
 
@@ -20,36 +20,32 @@ independently on their own phones.
 This is an early **family pilot**, not a medical device or emergency-response
 service. It does not send emergency alerts or guarantee continuous monitoring.
 
-## What's new in 0.1.11
+## What's new in 0.1.12
 
-- History sync reuses one encrypted connection across pages instead of reconnecting
-  every 20 records. Both phones need 0.1.11 for reuse; existing protocol-3
-  phones remain compatible.
-- New sharing setups select **phone battery, unlock activity and location** by
-  default. Review these choices in Settings before connecting a caregiver.
-  Android permissions and caregiver approval still apply. SMS, wearables and
-  Telegram require separate setup. Updates preserve existing saved choices.
-- **Save settings while sharing is on.** Changes apply without manually pausing;
-  a new permission is requested before changing an active configuration. Denial
-  keeps the previous settings running. Saving while paused does not resume sharing.
-  Unsaved feature choices survive tab changes and screen rotation.
-- Battery cards explain missing readings. The first supported wearable-battery
-  reading is saved promptly, and reconnecting keeps earlier battery readings with
-  their original timestamps until a newer value arrives.
+- The heart-rate graph includes the latest received reading before its summary is
+  saved and refreshes its time window when data arrives. The number and graph no
+  longer disagree during that interval. Older readings keep their original times.
+- **Phone battery now has a timeline** using the same chart as heart rate. The
+  dashboard shows the last hour; tap it for the selected reading's day. The Wearable
+  screen also offers one-hour and 24-hour battery views.
+- Battery charts show **percentage, exact recording time and charging status**
+  when you select a point. The card shows the latest recorded charging status;
+  unavailable status stays unknown. Gaps in collection stay visible.
 
-### Interactive heart-rate charts
+### Interactive charts
 
-The expanded **heart-rate charts** now support touch controls. Tap the dashboard's
-heart-rate card or wearable group to open the selected day's chart, or open
-**Wearable** for the one-hour or 24-hour view.
+Expanded **heart-rate and phone-battery charts** support touch controls. Tap a
+dashboard reading card for its recorded day, or the wearable group for the selected
+day. Open **Wearable** for the one-hour or 24-hour views.
 
 - **Pinch to zoom** down to a one-minute window.
 - **Move two fingers** to browse earlier or later times.
-- **Tap or drag one finger** to move a dotted marker between saved readings. The
-  label shows the BPM and full recorded date and time, including seconds.
+- **Tap or drag one finger** to move a dotted marker between readings. The
+  label shows BPM or battery percentage and the full recorded date and time,
+  including seconds. Battery points also show their recorded charging status.
 - Tap **Reset chart** to return to the full time range.
 
-The marker snaps to actual saved readings; it does not fill in missing data.
+The marker snaps to actual readings; it does not fill in missing data.
 Vertical swipes still scroll the page. Chart accessibility actions support zoom,
 time movement and stepping through readings.
 
@@ -62,11 +58,13 @@ automatically after an approved phone connection; saved pauses remain in effect.
 
 The **Calm** design uses soft green surfaces, a compact pink
 **heart-rate graph** for the last hour, and separate **phone battery** and
-**smartwatch battery** cards. The wearable group opens a chart for the selected
-day. The bottom navigation opens Updates, Location, Wearable, Phones and Settings.
-Larger text stacks the battery cards and wraps navigation into two rows.
+**smartwatch battery** cards. Phone battery includes a matching timeline. The
+wearable group opens a chart for the selected day. The bottom navigation opens Updates, Location, Wearable, Phones and Settings.
+Larger text stacks each chart below its reading and wraps navigation into two rows.
 
-The graph uses the last recorded pulse from each two-minute summary, not an ECG.
+The heart graph uses the last recorded pulse from each two-minute summary, plus
+the sharing phone's latest received pulse while waiting for its summary. It is not
+an ECG.
 Missing readings stay missing; percentages and pulse readings keep their own times.
 
 To share phone battery, enable **Settings → Share phone battery** and save while
@@ -77,7 +75,7 @@ the selected wearable exposes standard Bluetooth battery data; otherwise it show
 **Unknown**. One wearable is selected per sharing phone; caregivers can switch
 between family phones. Physical Galaxy Fit3 battery support is still unverified.
 
-Version 0.1.11 uses sync protocol 3 and can sync with 0.1.7–0.1.10. All paired
+Version 0.1.12 uses sync protocol 3 and can sync with 0.1.7–0.1.11. All paired
 phones must use **0.1.7 or newer**; 0.1.6 and older cannot sync with these versions. The
 published APK uses the same signing key as earlier releases; update in place to
 preserve identity, pairing and history.
@@ -88,7 +86,7 @@ You need **Android 8.0 or newer** on the sharing phone and every caregiver phone
 Both roles use the same APK (the Android installation file).
 
 1. **Install SeniorLink on each phone.** Open the release page above, download
-   **SeniorLink-0.1.11-debug.apk** from **Assets**, and open it.
+   **SeniorLink-0.1.12-debug.apk** from **Assets**, and open it.
    Android may ask you to allow installation from the browser or file app.
 2. **Choose each phone's role.** Your family member chooses **Share my information**;
    everyone receiving updates chooses **I'm a caregiver**. New sharing setups select
@@ -122,9 +120,9 @@ when a sharing phone is connected. Turn it off to pause background receiving;
 opening the caregiver app still fetches updates. This does not collect any of
 the caregiver's own information.
 
-**Updating an existing installation?** Install 0.1.11; it can sync with
-0.1.7–0.1.10, but paired phones running 0.1.6 or older must also be updated. The published
-APK uses the same signing key as versions 0.1.0–0.1.10, so install it as an update
+**Updating an existing installation?** Install 0.1.12; it can sync with
+0.1.7–0.1.11, but paired phones running 0.1.6 or older must also be updated. The published
+APK uses the same signing key as versions 0.1.0–0.1.11, so install it as an update
 without uninstalling to keep pairing and history. Versions 0.1.3 onward check for
 updates when opened; 0.1.5 onward also offers **Settings → App updates → Check for updates**.
 If an older version's direct download is blocked, open the release page above
@@ -303,7 +301,7 @@ also be restored without an Android toolchain using Python 3:
 python3 scripts/unpack-pilot.py
 ```
 
-This reconstructs and checksum-verifies `dist/SeniorLink-0.1.11-debug.apk`.
+This reconstructs and checksum-verifies `dist/SeniorLink-0.1.12-debug.apk`.
 The archive parts are not themselves installable. Full APKs, signing material and
 build output remain ignored. CI builds an APK and uploads test reports; it does
 not publish a release automatically.

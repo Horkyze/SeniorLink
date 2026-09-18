@@ -110,7 +110,7 @@ class HealthOverviewUiTest {
         compose.onNodeWithText("72 bpm").assertExists()
         compose.onNodeWithContentDescription("Heart-rate graph", substring = true).assertExists()
         screenshot("health-graph")
-        compose.onNodeWithText("24 hours").performScrollTo().performClick().assertIsSelected()
+        compose.onNodeWithTag("heart-hours-24").performScrollTo().performClick().assertIsSelected()
         compose.onNodeWithText("64%").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("18%").assertExists()
         compose.onNodeWithText("Charging", substring = true).assertExists()
@@ -140,8 +140,8 @@ class HealthOverviewUiTest {
         compose.onNodeWithText("69 bpm").assertExists()
         compose.onNodeWithText("No recent reading", substring = true).assertExists()
         compose.onNodeWithContentDescription("Heart-rate graph", substring = true).assertDoesNotExist()
-        compose.onNodeWithText("24 hours").performScrollTo().performClick()
-        compose.onNodeWithContentDescription("Heart-rate graph, 1 saved readings", substring = true).assertExists()
+        compose.onNodeWithTag("heart-hours-24").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Heart-rate graph, 1 readings", substring = true).assertExists()
     }
 
     @Test fun missingBatteryIsUnknownAndZeroIsARealReading() {
@@ -161,6 +161,62 @@ class HealthOverviewUiTest {
         compose.onNodeWithText("No reading received.", substring = true).assertIsDisplayed()
         compose.onNodeWithText("No battery reading.", substring = true).performScrollTo().assertIsDisplayed()
         screenshot("compact-battery-help")
+    }
+
+    @Test fun dashboardPlotsNewLiveAndSyncedReadingsImmediatelyWithoutWaitingForClockTick() {
+        val visible = mutableStateOf(state().copy(publicId = source, wearables = emptyList(),
+            settings = Settings(role = Role.SHARER, wearable = true, wearableId = "watch")))
+        val live = mutableStateOf(WearableState())
+        show {
+            family.seniorlink.dashboard.DailyDashboard(visible.value, live.value,
+                family.seniorlink.dashboard.ActivityState(), source, {}, {}, {}, {}, { _, _ -> },
+                false, false, "", false, {})
+        }
+        compose.onNodeWithTag("heart-graph", useUnmergedTree = true).assertDoesNotExist()
+        // A real incoming timestamp is later than the screen's initial clock.
+        compose.runOnIdle {
+            live.value = WearableState(latest = listOf(family.seniorlink.wearable.LiveWearableValue(
+                WearableMetric.HEART_RATE, 78.0, System.currentTimeMillis())))
+        }
+        compose.onNodeWithText("78 bpm").assertExists()
+        compose.onNodeWithTag("heart-graph", useUnmergedTree = true).assertExists()
+        compose.runOnIdle {
+            val at = System.currentTimeMillis()
+            visible.value = state().copy(wearables = listOf(StoredEvent(source, Event(1, Kind.WEARABLE, at,
+                wearable = WearableSummary("Watch", listOf(metric(WearableMetric.HEART_RATE, 76.0, at)))))))
+            live.value = WearableState()
+        }
+        compose.onNodeWithText("76 bpm").assertExists()
+        compose.onNodeWithTag("heart-graph", useUnmergedTree = true).assertExists()
+        screenshot("dashboard-heart-and-battery")
+    }
+
+    @Test fun batteryChartInspectsPercentageTimeAndChargingAndResetsZoom() {
+        val events = listOf(false, true, null).mapIndexed { index, charging ->
+            StoredEvent(source, Event(index + 1L, Kind.PHONE_BATTERY, now - (3 - index) * 300_000,
+                phoneBattery = PhoneBattery(60 + index, charging)))
+        }
+        show { family.seniorlink.dashboard.PhoneBatteryCard(events, now, "No reading") }
+        compose.onNodeWithText("Charging state unavailable").assertIsDisplayed()
+        val graph = compose.onNodeWithTag("battery-graph")
+        graph.performTouchInput { click(androidx.compose.ui.geometry.Offset(0f, height / 2f)) }
+        compose.onNodeWithTag("battery-graph-selection").assert(hasText("60%", substring = true))
+            .assert(hasText("Not charging", substring = true))
+        val expectedTime = java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm:ss")
+            .withZone(java.time.ZoneId.systemDefault()).format(java.time.Instant.ofEpochMilli(events.first().event.occurredAt))
+        compose.onNodeWithTag("battery-graph-selection").assert(hasText(expectedTime, substring = true))
+        val next = graph.fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsActions.CustomActions].single { it.label == "Next reading" }
+        compose.runOnIdle { next.action() }
+        compose.onNodeWithTag("battery-graph-selection").assert(hasText("61%", substring = true))
+            .assert(hasText(" · Charging", substring = true))
+        screenshot("battery-chart-selected")
+        val before = graph.fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.StateDescription]
+        val zoom = graph.fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsActions.CustomActions].single { it.label == "Zoom in" }
+        compose.runOnIdle { zoom.action() }
+        assertNotEquals(before, graph.fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.StateDescription])
+        compose.onNodeWithText("Reset chart").performClick()
+        compose.onNodeWithTag("battery-graph-selection").assertTextEquals("Touch the chart to inspect a reading")
+        compose.onNodeWithTag("battery-hours-24").performClick().assertIsSelected()
     }
 
     private fun show(content: @Composable () -> Unit) {

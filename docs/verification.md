@@ -1,5 +1,55 @@
 # Verification
 
+## Heart-rate and battery charts — 0.1.12 (18 September 2026)
+
+- Version 0.1.12 (version code 13) passes all **41 core and 83 Android JVM
+  tests**, without failures or skips. Debug and instrumentation APK builds pass;
+  lint reports zero errors and 17 warnings.
+- **Twelve selected instrumentation tests pass**, without skips, on the Android
+  17 ARM64 emulator with 16 KB pages: health/dashboard UI, immediate graph updates
+  for new live and synced pulses, battery percentage/time/charging selection,
+  chart gestures, family switching/revocation, daily battery detail/history and
+  phone-battery collection with opt-in and Pause. The daily-history fixture ran
+  in an isolated temporary emulator user because the existing user had a sharing
+  configuration. A first launch before that temporary user unlocked failed in
+  setup; rerunning after unlock passed.
+- The dashboard arrival regression test also passes with **1.5x font scale**.
+  Normal-font dashboard, interactive battery chart and 1.5x dashboard screenshots
+  were inspected. The shared chart height accommodates all three axis labels.
+- The local 0.1.11 APK matches the published asset digest
+  `568c1c6df51ccb11110f12617fece9b58ed3fd2bd6a5a48ed3f6d0aedaa6b7ca`.
+  Both APK signatures verify with certificate SHA-256
+  `7e4f9088dfb6e1a7175ed42dc7a9d1f32717a21d28165cead7b6adfa04cbc302`.
+  Installing 0.1.11 followed by 0.1.12 using `adb install -r` succeeds.
+- All 12 native libraries are byte-identical to published 0.1.11. ABI and 16 KB
+  ELF/ZIP alignment checks pass. Six archive parts reconstruct the tested APK
+  byte for byte in an isolated temporary directory. SHA-256:
+  `ca6e347aceee9efe1683ca3226958ebf70629bfe3ef896fcc7717f0618aee19d`.
+
+Commands performed:
+
+```sh
+. ./scripts/env.sh
+./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest
+python3 scripts/verify-apk.py
+adb install -r dist/SeniorLink-0.1.11-debug.apk
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+adb shell am instrument -w -r -e class family.seniorlink.HealthOverviewUiTest,family.seniorlink.HeartGraphUiTest,family.seniorlink.PhoneBatteryServiceTest family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+# Final daily-history fixture used temporary user 12, after installation and unlock:
+adb shell am instrument --user 12 -w -r -e class family.seniorlink.DailySummaryUiTest -e seniorlink.dashboardFixture true family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+adb shell settings put system font_scale 1.5
+adb shell am instrument -w -r -e class family.seniorlink.HealthOverviewUiTest#dashboardPlotsNewLiveAndSyncedReadingsImmediatelyWithoutWaitingForClockTick family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+python3 scripts/package-pilot.py
+# Ran unpack-pilot.py in a temporary copy containing only SHA256SUMS and six parts.
+git diff --check
+```
+
+Protocol 3, collection cadence, consent gates and the stored database format are
+unchanged. Charging labels describe the last recorded sample, not the current
+physical charger connection. Physical phones and wearables still need the
+[acceptance checks](acceptance.md); emulator results do not establish compatibility.
+
 ## Release packaging — 0.1.11 (17 September 2026)
 
 - Version 0.1.11 (version code 12) passes all **41 core and 79 Android JVM

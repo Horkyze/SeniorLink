@@ -84,10 +84,24 @@ internal fun ActivityDetails(screen: ScreenState, activity: ActivityState, sourc
                         Text("Recorded heart rate", fontWeight = FontWeight.SemiBold)
                         Text(snapshot.name, style = MaterialTheme.typography.bodySmall)
                         key(source, date, snapshot.events.firstOrNull()?.event?.wearable?.deviceId) {
-                            HeartGraph(points, points.first().at, maxOf(points.first().at + 60_000, points.last().at),
+                            ReadingGraph(points, points.first().at, maxOf(points.first().at + 60_000, points.last().at),
                                 Calm.Chart, height = 160, interactive = true)
                         }
                         if (total > 1000) Text("Chart uses the latest 1,000 saved wearable updates for this day.", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+            if (day != null && request.kind == Kind.PHONE_BATTERY && !request.fullHistory) item {
+                val events = phoneBatteryEvents(screen.copy(phoneBatteries = day.batteryRecords), source)
+                val points = batteryPoints(events)
+                if (points.isNotEmpty()) Card(colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color.White)) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Recorded phone battery", fontWeight = FontWeight.SemiBold)
+                        key(source, date) {
+                            ReadingGraph(points, points.first().at, maxOf(points.first().at + 60_000, points.last().at),
+                                Calm.Green, height = 160, interactive = true, metric = ChartMetric.PHONE_BATTERY)
+                        }
+                        Text("Charging status is shown as recorded at the selected time.", style = MaterialTheme.typography.bodySmall)
                     }
                 }
             }

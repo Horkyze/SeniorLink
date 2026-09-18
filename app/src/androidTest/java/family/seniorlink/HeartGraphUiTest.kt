@@ -17,8 +17,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import family.seniorlink.dashboard.HeartGraph
-import family.seniorlink.dashboard.HeartPoint
+import family.seniorlink.dashboard.ReadingGraph
+import family.seniorlink.dashboard.ChartPoint
 import family.seniorlink.ui.Calm
 import family.seniorlink.ui.CalmTheme
 import org.junit.Assert.*
@@ -35,7 +35,7 @@ class HeartGraphUiTest {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
     private val start = 1_800_000_000_000L
     private val end = start + 3_600_000
-    private val points = (0..30).map { HeartPoint(start + it * 120_000, 60.0 + it, it == 0 || it == 15) }
+    private val points = (0..30).map { ChartPoint(start + it * 120_000, 60.0 + it, it == 0 || it == 15) }
     private val graph get() = compose.onNodeWithTag("heart-graph")
     private fun description() = graph.fetchSemanticsNode().config[SemanticsProperties.StateDescription]
 
@@ -79,7 +79,7 @@ class HeartGraphUiTest {
         screenshot("heart-graph-zoom")
         compose.onNodeWithText("Reset chart").performClick()
         assertEquals(original, description())
-        compose.onNodeWithTag("heart-graph-selection").assertTextEquals("Touch the chart to inspect a saved reading")
+        compose.onNodeWithTag("heart-graph-selection").assertTextEquals("Touch the chart to inspect a reading")
     }
 
     @Test fun verticalDragStillScrollsParentAndRemovedReadingsClearSelection() {
@@ -87,13 +87,13 @@ class HeartGraphUiTest {
         show(data)
         graph.performTouchInput { click(center) }
         compose.runOnIdle { data.value = points.filterNot { it.at == points[15].at } }
-        compose.onNodeWithTag("heart-graph-selection").assertTextEquals("Touch the chart to inspect a saved reading")
+        compose.onNodeWithTag("heart-graph-selection").assertTextEquals("Touch the chart to inspect a reading")
         val before = graph.fetchSemanticsNode().boundsInRoot.top
         graph.performTouchInput { swipe(Offset(width * 0.5f, height * 0.85f), Offset(width * 0.5f, height * 0.1f), 500) }
         assertTrue(graph.fetchSemanticsNode().boundsInRoot.top < before)
     }
 
-    private fun show(data: State<List<HeartPoint>> = mutableStateOf(points)) {
+    private fun show(data: State<List<ChartPoint>> = mutableStateOf(points)) {
         val model = ViewModelProvider(compose.activity)[MainViewModel::class.java]
         compose.waitUntil(15_000) { model.screen.value.ready }
         compose.runOnUiThread {
@@ -103,7 +103,7 @@ class HeartGraphUiTest {
                     Column(Modifier.fillMaxSize().systemBarsPadding().verticalScroll(rememberScrollState()).padding(20.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Recorded heart rate")
-                        HeartGraph(data.value, start, end, Calm.Chart, height = 180, interactive = true)
+                        ReadingGraph(data.value, start, end, Calm.Chart, height = 180, interactive = true)
                         Spacer(Modifier.height(1000.dp))
                     }
                 }

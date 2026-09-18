@@ -228,7 +228,8 @@ class Store(context: Context, name: String = "seniorlink") : SQLiteOpenHelper(co
                     maxOf(today, Instant.ofEpochMilli(c.getLong(1)).atZone(zone).toLocalDate())
         }
         return ActivityDay(source, date, counts, page.take(limit), page.size > limit, range.first, range.second,
-            if (kind == Kind.WEARABLE && limit > 0) records(Kind.WEARABLE, 1000) else emptyList())
+            if (kind == Kind.WEARABLE && limit > 0) records(Kind.WEARABLE, 1000) else emptyList(),
+            if (kind == Kind.PHONE_BATTERY && limit > 0) records(Kind.PHONE_BATTERY, 10000) else emptyList())
     }
 
     /** Resolve an explicitly opened historical fix without keeping a second cache after revocation. */
@@ -283,6 +284,15 @@ class Store(context: Context, name: String = "seniorlink") : SQLiteOpenHelper(co
             "SELECT json FROM events WHERE source=? AND kind=? AND storedAt>=? ORDER BY occurredAt DESC,sequence DESC LIMIT 1",
             arrayOf(source, Kind.PHONE_BATTERY.name, (now - RETENTION_MS).toString()),
         ).use { c -> if (c.moveToFirst()) StoredEvent(source, Wire.json.decodeFromString<Event>(c.getString(0))) else null }
+
+    /** Retained battery timeline, independent of mixed activity and other sources. */
+    @Synchronized fun phoneBatteries(source: String, now: Long = System.currentTimeMillis()): List<StoredEvent> =
+        readableDatabase.rawQuery(
+            "SELECT json FROM events WHERE source=? AND kind=? AND storedAt>=? ORDER BY occurredAt DESC,sequence DESC LIMIT 10000",
+            arrayOf(source, Kind.PHONE_BATTERY.name, (now - RETENTION_MS).toString()),
+        ).use { c -> buildList {
+            while (c.moveToNext()) add(StoredEvent(source, Wire.json.decodeFromString<Event>(c.getString(0))))
+        } }
 
     @Synchronized fun pendingTelegram(): Long = readableDatabase.rawQuery("SELECT COUNT(*) FROM telegram", null)
         .use { it.moveToFirst(); it.getLong(0) }

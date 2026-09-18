@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
@@ -35,10 +36,16 @@ import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.roundToInt
 
+internal enum class ChartMetric(val title: String, val tag: String, val unit: String) {
+    HEART_RATE("Heart-rate", "heart-graph", "bpm"),
+    PHONE_BATTERY("Phone-battery", "battery-graph", "%"),
+}
+
 @Composable
-internal fun HeartGraph(
-    points: List<HeartPoint>, start: Long, end: Long, accent: Color,
+internal fun ReadingGraph(
+    points: List<ChartPoint>, start: Long, end: Long, accent: Color,
     height: Int = 124, labels: Boolean = true, interactive: Boolean = false,
+    metric: ChartMetric = ChartMetric.HEART_RATE,
 ) {
     if (points.isEmpty()) return
     val bounds = HeartGraphWindow(start, maxOf(start + 1, end))
@@ -48,14 +55,15 @@ internal fun HeartGraph(
     val visible = points.filter { it.at in window.start..window.end }
     val selected = visible.firstOrNull { it.at == selectedAt }
     // Keep the vertical scale stable while moving through time.
-    val low = (floor(points.minOf { it.bpm } / 10) * 10 - 10).coerceAtLeast(0.0)
-    val high = maxOf(ceil(points.maxOf { it.bpm } / 10) * 10, low + 20)
+    val low = if (metric == ChartMetric.PHONE_BATTERY) 0.0 else (floor(points.minOf { it.value } / 10) * 10 - 10).coerceAtLeast(0.0)
+    val high = if (metric == ChartMetric.PHONE_BATTERY) 100.0 else maxOf(ceil(points.maxOf { it.value } / 10) * 10, low + 20)
     val grid = Calm.Line
     val exactTime = remember { DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm:ss").withZone(ZoneId.systemDefault()) }
-    val selectionText = selected?.let { "${it.bpm.roundToInt()} bpm · ${exactTime.format(Instant.ofEpochMilli(it.at))}" }
-    val description = "Heart-rate graph, ${points.size} saved readings. " +
+    val selectionText = selected?.let { "${it.value.roundToInt()}${if (metric == ChartMetric.PHONE_BATTERY) "%" else " bpm"} · ${exactTime.format(Instant.ofEpochMilli(it.at))}" +
+        (it.detail?.let { detail -> " · $detail" } ?: "") }
+    val description = "${metric.title} graph, ${points.size} readings. " +
         "${formatTime(points.first().at)} to ${formatTime(points.last().at)}. " +
-        "Lowest ${points.minOf { it.bpm }.roundToInt()}, highest ${points.maxOf { it.bpm }.roundToInt()} beats per minute."
+        "Lowest ${points.minOf { it.value }.roundToInt()}, highest ${points.maxOf { it.value }.roundToInt()} ${metric.unit}."
     val select by rememberUpdatedState<(Float) -> Unit>({ fraction -> selectedAt = window.nearest(points, fraction)?.at })
     val transform by rememberUpdatedState<(Float, Float, Float) -> Unit>({ zoom, anchor, pan ->
         val next = (zoomedWindow?.constrainedTo(bounds) ?: bounds).transform(bounds, zoom, anchor, pan)
@@ -96,16 +104,17 @@ internal fun HeartGraph(
         }
     }
     if (interactive) {
-        Text(selectionText ?: if (visible.isEmpty()) "No saved readings in this view" else "Touch the chart to inspect a saved reading",
-            Modifier.testTag("heart-graph-selection"), style = MaterialTheme.typography.bodySmall)
+        Text(selectionText ?: if (visible.isEmpty()) "No readings in this view" else "Touch the chart to inspect a reading",
+            Modifier.testTag("${metric.tag}-selection"), style = MaterialTheme.typography.bodySmall)
     }
-    Row(Modifier.fillMaxWidth().height(height.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    val minimumHeight = with(LocalDensity.current) { MaterialTheme.typography.labelSmall.lineHeight.toDp() * 3 } + 12.dp
+    Row(Modifier.fillMaxWidth().height(maxOf(height.dp, minimumHeight)), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Column(Modifier.fillMaxHeight(), verticalArrangement = Arrangement.SpaceBetween) {
             Text(high.toInt().toString(), style = MaterialTheme.typography.labelSmall)
             Text(((high + low) / 2).toInt().toString(), style = MaterialTheme.typography.labelSmall)
             Text(low.toInt().toString(), style = MaterialTheme.typography.labelSmall)
         }
-        Canvas(Modifier.weight(1f).fillMaxHeight().padding(vertical = 6.dp).testTag("heart-graph").then(gestures).semantics {
+        Canvas(Modifier.weight(1f).fillMaxHeight().padding(vertical = 6.dp).testTag(metric.tag).then(gestures).semantics {
             contentDescription = description
             if (interactive) {
                 stateDescription = "Visible time: ${exactTime.format(Instant.ofEpochMilli(window.start))} to ${exactTime.format(Instant.ofEpochMilli(window.end))}" +
@@ -125,9 +134,9 @@ internal fun HeartGraph(
             }
         }) {
             val inset = 4.dp.toPx()
-            fun position(p: HeartPoint) = Offset(
+            fun position(p: ChartPoint) = Offset(
                 inset + ((p.at - window.start).toDouble() / window.duration * (size.width - inset * 2)).toFloat(),
-                inset + ((high - p.bpm) / (high - low) * (size.height - inset * 2)).toFloat(),
+                inset + ((high - p.value) / (high - low) * (size.height - inset * 2)).toFloat(),
             )
             listOf(inset, size.height / 2, size.height - inset).forEach { y ->
                 drawLine(grid, Offset(0f, y), Offset(size.width, y), 1.dp.toPx())

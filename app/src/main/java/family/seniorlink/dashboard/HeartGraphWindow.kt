@@ -20,7 +20,7 @@ internal data class HeartGraphWindow(val start: Long, val end: Long) {
         return HeartGraphWindow(left, left + span).constrainedTo(bounds)
     }
 
-    fun nearest(points: List<HeartPoint>, fraction: Float): HeartPoint? {
+    fun nearest(points: List<ChartPoint>, fraction: Float): ChartPoint? {
         val time = start + duration * fraction.coerceIn(0f, 1f).toDouble()
         return points.filter { it.at in start..end }.minByOrNull { abs(it.at - time) }
     }

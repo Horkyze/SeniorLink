@@ -46,7 +46,7 @@ class HealthDataTest {
     @Test fun contactLossRemovesCurrentPulseButKeepsTimestampedHistory() {
         val snapshot = wearableSnapshot(state(event(1, 100_000, 70.0), event(2, 120_000, 0.0, WearableMetric.CONTACT)), WearableState(), source)
         assertFalse(snapshot.values.any { it.metric == WearableMetric.HEART_RATE })
-        assertEquals(70.0, snapshot.points.single().bpm, 0.0)
+        assertEquals(70.0, snapshot.points.single().value, 0.0)
     }
 
     @Test fun caregiverNeverUsesLocalLiveReadings() {
@@ -73,4 +73,39 @@ class HealthDataTest {
         val live = WearableState(latest = listOf(LiveWearableValue(WearableMetric.CONTACT, 0.0, 200_000)))
         assertFalse(wearableSnapshot(state, live, source).values.any { it.metric == WearableMetric.HEART_RATE })
     }
+    @Test fun latestReceivedPulseAppearsBeforeSummaryAndIsNotDuplicatedAfterSaving() {
+        val state = state().copy(publicId = source,
+            settings = Settings(role = Role.SHARER, wearable = true, wearableId = "watch"))
+        val live = WearableState(latest = listOf(LiveWearableValue(WearableMetric.HEART_RATE, 72.0, 200_000)))
+        val snapshot = wearableSnapshot(state, live, source)
+        assertEquals(listOf(ChartPoint(200_000, 72.0, true)), snapshot.points)
+        val saved = state.copy(wearables = listOf(event(1, 200_000, 72.0)))
+        assertEquals(snapshot.points, wearableSnapshot(saved, live, source).points)
+        assertTrue(wearableSnapshot(state.copy(settings = state.settings.copy(wearable = false)), live, source).points.isEmpty())
+        assertTrue(wearableSnapshot(state(), live, source).points.isEmpty())
+    }
+
+    @Test fun liveContactLossBreaksLineToLaterPulseAndDoesNotInventReadings() {
+        val state = state(event(1, 100_000, 72.0)).copy(publicId = source,
+            settings = Settings(role = Role.SHARER, wearable = true, wearableId = "watch"))
+        val live = WearableState(latest = listOf(LiveWearableValue(WearableMetric.CONTACT, 0.0, 150_000),
+            LiveWearableValue(WearableMetric.HEART_RATE, 75.0, 200_000)))
+        assertEquals(listOf(ChartPoint(100_000, 72.0, true), ChartPoint(200_000, 75.0, true)),
+            wearableSnapshot(state, live, source).points)
+    }
+
+    @Test fun batteryTimelineScopesSortsDeduplicatesAndPreservesGapsAndChargingStates() {
+        fun battery(seq: Long, at: Long, percent: Int, charging: Boolean?, phone: String = source) =
+            StoredEvent(phone, Event(seq, Kind.PHONE_BATTERY, at, phoneBattery = PhoneBattery(percent, charging)))
+        val state = state().copy(phoneBatteries = listOf(battery(4, 1_000_000, 100, true),
+            battery(1, 100_000, 0, null), battery(3, 400_000, 20, false), battery(2, 400_000, 21, true),
+            battery(5, 1_600_001, 99, null), battery(6, 1_700_000, 80, true, other)))
+        val points = batteryPoints(phoneBatteryEvents(state, source))
+        assertEquals(listOf(0.0, 20.0, 100.0, 99.0), points.map { it.value })
+        assertEquals(listOf(true, false, false, true), points.map { it.breakBefore })
+        assertEquals(listOf("Charging state unavailable", "Not charging", "Charging", "Charging state unavailable"), points.map { it.detail })
+        assertTrue(phoneBatteryEvents(state.copy(peers = emptyList()), source).isEmpty())
+        assertEquals(listOf(80.0), batteryPoints(phoneBatteryEvents(state, other)).map { it.value })
+    }
+
 }

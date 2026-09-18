@@ -81,7 +81,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 locations = sources.flatMap { app.store.locations(it) },
                 inspectedLocation = inspectedLocationKey?.takeIf { it.first in sources }?.let { app.store.location(it.first, it.second) },
                 wearables = sources.flatMap { app.store.wearables(it) },
-                phoneBatteries = sources.mapNotNull { app.store.phoneBattery(it) },
+                phoneBatteries = sources.flatMap { app.store.phoneBatteries(it) },
                 pendingTelegram = app.store.pendingTelegram(),
                 tokenSaved = app.secrets.read("telegram")?.isNotEmpty() == true,
             )

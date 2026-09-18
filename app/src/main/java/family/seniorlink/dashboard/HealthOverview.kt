@@ -15,9 +15,9 @@ import family.seniorlink.ui.Calm
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -36,9 +36,9 @@ import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
 
 @Composable
-internal fun rememberReadingTime(): Long {
-    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(Unit) { while (true) { delay(30_000); now = System.currentTimeMillis() } }
+internal fun rememberReadingTime(vararg readings: Any?): Long {
+    var now by remember(*readings) { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(*readings) { while (true) { delay(30_000); now = System.currentTimeMillis() } }
     return now
 }
 
@@ -55,7 +55,7 @@ internal fun HealthOverview(
     val sharer = state.settings.role == Role.SHARER
     val source = if (sharer) state.publicId else state.peers.firstOrNull { it.id == (selectedSource ?: selected) }?.id ?: state.peers.firstOrNull()?.id
     val peer = state.peers.firstOrNull { it.id == source }
-    val now = rememberReadingTime()
+    val now = rememberReadingTime(state, live)
     val snapshot = remember(state, live, source) { wearableSnapshot(state, live, source) }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Column(Modifier.padding(top = 4.dp, bottom = 6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -81,7 +81,7 @@ internal fun HealthOverview(
         Text("Device batteries", Modifier.padding(top = 4.dp), style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold, color = Calm.Ink)
         DeviceBatteries(state, source, snapshot, now)
-        Text("Saved readings · Heart-rate trend, not an ECG", Modifier.fillMaxWidth(),
+        Text("Recorded readings · Heart-rate trend, not an ECG", Modifier.fillMaxWidth(),
             style = MaterialTheme.typography.bodySmall, color = Calm.Muted, textAlign = TextAlign.Center)
         TextButton(onClick = onWearable, modifier = Modifier.align(Alignment.End)) { Text("View wearable details") }
     }
@@ -121,11 +121,11 @@ internal fun HeartRateCard(snapshot: WearableSnapshot, now: Long) {
             if (points.isEmpty()) {
                 Text("No recorded heart-rate readings in the last ${if (hours == 1) "hour" else "24 hours"}.",
                     modifier = Modifier.padding(vertical = 20.dp), style = MaterialTheme.typography.bodyMedium)
-            } else key(hours) { HeartGraph(points, start, now, Calm.Chart, height = 160, interactive = true) }
+            } else key(hours) { ReadingGraph(points, start, now, Calm.Chart, height = 160, interactive = true) }
             FlowRow(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 listOf(1 to "1 hour", 24 to "24 hours").forEach { (value, label) ->
                     Surface(shape = RoundedCornerShape(10.dp), color = if (hours == value) Color.White else Color.Transparent) {
-                        Box(Modifier.selectable(hours == value, role = androidx.compose.ui.semantics.Role.Tab,
+                        Box(Modifier.testTag("heart-hours-$value").selectable(hours == value, role = androidx.compose.ui.semantics.Role.Tab,
                             onClick = { hours = value }).heightIn(min = 48.dp).padding(horizontal = 14.dp, vertical = 12.dp),
                             contentAlignment = Alignment.Center) {
                             Text(label, style = MaterialTheme.typography.labelLarge,
@@ -141,9 +141,6 @@ internal fun HeartRateCard(snapshot: WearableSnapshot, now: Long) {
 @Composable
 internal fun DeviceBatteries(state: ScreenState, source: String?, snapshot: WearableSnapshot, now: Long,
     compact: Boolean = false, onPhone: (() -> Unit)? = null, onWatch: (() -> Unit)? = null) {
-    val phone = state.phoneBatteries.filter { it.source == source &&
-        (state.settings.role == Role.SHARER && source == state.publicId || state.peers.any { peer -> peer.id == source }) }
-        .maxByOrNull { it.event.occurredAt }?.event
     val watch = snapshot.values.firstOrNull { it.metric == WearableMetric.BATTERY }
     val phoneMissing = when {
         state.settings.role == Role.SHARER && !state.settings.phoneBattery ->
@@ -156,20 +153,9 @@ internal fun DeviceBatteries(state: ScreenState, source: String?, snapshot: Wear
     val watchMissing = if (state.settings.role == Role.SHARER && !state.settings.wearable)
         "Choose a wearable and enable Share wearable readings in Settings."
         else "No battery reading. Some watches do not share battery over Bluetooth."
-    val phoneStatus = when (phone?.phoneBattery?.charging) {
-        true -> "Charging"; false -> "Not charging"; null -> "Charging state unavailable"
-    }
-    val fontScale = LocalDensity.current.fontScale
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val stacked = maxWidth < 300.dp || fontScale > 1.3f
-        val cards: @Composable (Modifier) -> Unit = { modifier ->
-            BatteryCard("Phone", R.drawable.ic_phone_outline, phone?.phoneBattery?.percent, phone?.occurredAt, now, phoneStatus, phoneMissing, modifier, compact, onPhone)
-            BatteryCard("Smartwatch", R.drawable.ic_watch_outline, watch?.value?.roundToInt(), watch?.receivedAt, now, "",
-                watchMissing, modifier, compact, onWatch)
-        }
-        if (stacked) Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { cards(Modifier.fillMaxWidth()) }
-        else Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) { cards(Modifier.weight(1f)) }
-    }
+    key(source) { PhoneBatteryCard(phoneBatteryEvents(state, source), now, phoneMissing, compact, onPhone) }
+    BatteryCard("Smartwatch", R.drawable.ic_watch_outline, watch?.value?.roundToInt(), watch?.receivedAt, now, "",
+        watchMissing, Modifier.fillMaxWidth(), compact, onWatch)
 }
 
 @Composable

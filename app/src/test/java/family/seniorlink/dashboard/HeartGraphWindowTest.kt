@@ -26,7 +26,7 @@ class HeartGraphWindowTest {
     }
 
     @Test fun selectionUsesActualSavedReadingsAndNeverInventsValueInGap() {
-        val points = listOf(HeartPoint(1_000_000, 60.0, true), HeartPoint(4_600_000, 90.0, true))
+        val points = listOf(ChartPoint(1_000_000, 60.0, true), ChartPoint(4_600_000, 90.0, true))
         assertEquals(points.first(), bounds.nearest(points, 0.1f))
         assertEquals(points.last(), bounds.nearest(points, 0.9f))
         assertNull(HeartGraphWindow(2_000_000, 3_000_000).nearest(points, 0.5f))

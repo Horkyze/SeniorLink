@@ -67,6 +67,15 @@ class DailySummaryUiTest {
             compose.onNodeWithText("Recent updates").assertDoesNotExist()
             compose.onNodeWithText("46%").assertExists()
             screenshot("daily-summary-overview")
+            compose.onNodeWithTag("phone-battery-card").performScrollTo().performClick()
+            compose.waitUntil(10_000) { model.activityBrowser.state.value.day?.batteryRecords?.size == 1 }
+            compose.onNodeWithText("Recorded phone battery").assertExists()
+            val batteryChart = compose.onNode(hasTestTag("battery-graph") and SemanticsMatcher.keyIsDefined(SemanticsProperties.StateDescription))
+            batteryChart.performTouchInput { click(center) }
+            compose.onNodeWithTag("battery-graph-selection").assert(hasText("46%", substring = true))
+                .assert(hasText("Not charging", substring = true))
+            screenshot("daily-battery-sheet")
+            compose.onNodeWithText("Close").performClick()
             compose.onNodeWithTag("digest-CHECK_IN").performScrollTo().assert(hasText("1 recorded", substring = true))
             compose.onNodeWithTag("digest-UNLOCK").assert(hasText("120 recorded", substring = true))
             screenshot("daily-summary-groups")
