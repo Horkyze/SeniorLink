@@ -118,6 +118,7 @@ class MonitorService : Service() {
             }
             sessionToken = token
             running.value = true
+            app.store.mailbox.sharing(true)
             app.monitorStatus.value = "Monitoring active; starting encrypted sharing…"
             // USER_PRESENT is a protected system broadcast, but SystemUI can send it
             // from a privileged non-system UID. NOT_EXPORTED drops those real unlocks.
@@ -132,9 +133,10 @@ class MonitorService : Service() {
                         ) {
                             coroutineScope {
                                 launch { Telegram.run(app) }
+                                launch { app.mailbox.sourceLoop(::sessionEnabled) }
                                 while (isActive && sessionEnabled()) {
                                     try {
-                                        IrohSync.serve(app.identity, app.store, ::sessionEnabled) {
+                                        IrohSync.serve(app.identity, app.store, ::sessionEnabled, control = app.mailbox::control) {
                                             if (sessionEnabled()) app.monitorStatus.value = it
                                         }
                                     } catch (e: CancellationException) { throw e }
@@ -323,7 +325,11 @@ class MonitorService : Service() {
                 running.value = false
                 sessionToken = null
                 receiving.value = false
-                try { app.backgroundSession.pause() }
+                try {
+                    app.backgroundSession.pause()
+                    if (app.store.settings.role == Role.SHARER) app.store.mailbox.sharing(false)
+                    app.mailbox.refresh()
+                }
                 finally {
                     app.caregiverReceiver.background(false)
                     BackgroundRecovery.cancel(app)

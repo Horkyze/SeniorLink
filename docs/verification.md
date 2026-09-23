@@ -1,5 +1,142 @@
 # Verification
 
+## Release packaging — 0.1.13 (23 September 2026)
+
+- Version 0.1.13 (version code 14) passes **46 core and 97 Android JVM tests**,
+  without failures or skips. Nine local Worker tests and TypeScript checking pass.
+  Debug and instrumentation APK builds pass; lint reports zero errors and 17
+  warnings.
+- **Six selected final-APK instrumentation tests pass**, without skips, on the
+  Android 17 ARM64 emulator: native mailbox/direct ALPN coexistence, Android HPKE
+  and native signatures, access withdrawal, two-caregiver retained-history sync,
+  Keystore persistence, mailbox settings opt-in, and caregiver background delivery
+  without caregiver collection. Tests ran in temporary users 10 and 11.
+- The baseline 0.1.12 APK matches the published GitHub asset digest
+  `ca6e347aceee9efe1683ca3226958ebf70629bfe3ef896fcc7717f0618aee19d`.
+  Both APK signatures verify with certificate SHA-256
+  `7e4f9088dfb6e1a7175ed42dc7a9d1f32717a21d28165cead7b6adfa04cbc302`.
+  Installing 0.1.12 then updating in place to 0.1.13 succeeds.
+- All 12 native libraries are byte-identical to 0.1.12. All supported ABI and
+  16 KB ELF/ZIP alignment checks pass. Seven archive parts reconstruct the tested
+  APK exactly in an isolated temporary directory. APK SHA-256:
+  `025f60c5aeb7fa984c93845ccf54a4d0ca5411e5475ded6f9706106f112ed350`.
+- Worker credentials, the service private key and local tools are excluded from
+  the commit. The checked-in setup code contains only the service origin/public
+  key. Real phones still need admission and a physical two-phone mailbox check;
+  publishing an APK does not authorize devices or establish that end-to-end check.
+
+Commands performed:
+
+```sh
+. ./scripts/env.sh
+./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest
+npm --prefix mailbox run check
+npm --prefix mailbox test
+python3 scripts/verify-apk.py
+# Verified both APK certificates using Android build-tools apksigner.
+adb install --user 10 -r dist/SeniorLink-0.1.12-debug.apk
+adb install --user 10 -r app/build/outputs/apk/debug/app-debug.apk
+adb install --user 10 -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+adb shell am instrument --user 10 -w -r -e class family.seniorlink.MailboxDeviceTest,family.seniorlink.IrohDeviceTest,family.seniorlink.MailboxSettingsUiTest -e seniorlink.mailboxFixture true family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+adb shell am instrument --user 11 -w -r -e class family.seniorlink.CaregiverBackgroundServiceTest -e seniorlink.caregiverFixture true family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+python3 scripts/package-pilot.py
+# Ran unpack-pilot.py in a temporary copy containing only SHA256SUMS and seven parts.
+git diff --check
+```
+
+Direct sync remains protocol 3. Mailbox setup uses a separate version-1 ALPN and
+requires 0.1.13 on both phones. Database schema 2→3 migration preserves existing
+history and pairing. The release remains a debug-signed family pilot prerelease.
+
+## First private mailbox deployment (23 September 2026)
+
+- Created `seniorlink-mailbox` in the authenticated personal Cloudflare account,
+  including the `SourceMailbox` SQLite Durable Object migration. Public HTTPS
+  origin: `https://seniorlink-mailbox.liquid-rock.workers.dev`.
+- Active deployment after secret configuration: `732c526c-9d21-4cc7-b451-2dab532fa3aa`.
+- Created a new service Ed25519 signing key. Uploaded `ORIGIN`,
+  `SERVICE_PUBLIC_KEY`, `SERVICE_PRIVATE_KEY` and `ALLOWED_IDENTITIES` as Worker
+  secrets. The local private `.dev.vars` has mode 0600 and is Git-ignored. The
+  public setup code is in [mailbox/setup-code.txt](../mailbox/setup-code.txt).
+- Type checking, Wrangler dry-run and all nine local Worker tests passed before
+  deployment. Live HTTPS checks used temporary synthetic identities and an opaque
+  synthetic envelope: signed info/storage receipt verification, SQLite queue
+  upload/fetch, duplicate PUT, recipient-only access, ACK and receipt confirmation,
+  replay rejection, Pause and revoked-grant registration rejection all passed.
+- The synthetic route was closed and its payload consumed. Restored the empty
+  admission list and verified signed requests from the temporary identities now
+  receive HTTP 403 `NOT_ADMITTED`. No real phones are admitted yet.
+- This verifies the deployed Worker contract; the synthetic envelope was not
+  decrypted by an Android phone. Install the mailbox-capable build on both phones,
+  admit their public IDs and perform the initial setup/offline-delivery check before
+  treating family delivery as verified. No Android release was published.
+
+Commands performed:
+
+```sh
+cd mailbox
+npx wrangler whoami
+npm run check
+npm test
+npm run deploy
+npm run keys -- https://seniorlink-mailbox.liquid-rock.workers.dev
+npx wrangler secret bulk .dev.vars
+# Temporary synthetic admission was installed for a live signed-request smoke check,
+# then .dev.vars was reapplied to restore the empty admission list.
+npx wrangler deployments list
+npx wrangler secret list
+```
+
+## Encrypted serverless mailbox — source build (22 September 2026)
+
+- **46 core and 97 Android JVM tests pass**, without failures or skips. The new
+  persistence cases run at Android API 26 and 35: atomic outbox/receipt state,
+  restart, duplicate/conflicting events, independent direct cursor, withdrawal,
+  Pause, stale upload responses, service changes, retention accounting and schema
+  2→3 migration. Existing identity, pairing and event history are preserved.
+- Core crypto tests check HPKE against the public RFC 9180 A.2 vector, tampering,
+  recipient isolation, fresh encapsulation and bounded clock skew. A shared
+  synthetic HTTP-signature vector matches Kotlin/BC and Node/Worker byte for byte.
+- **Nine Worker tests pass** against local workerd/SQLite Durable Objects:
+  authentication, authorization, nonce replay, duplicate PUT/ACK, signed receipts,
+  receipt pagination/confirmation, Pause response-loss retry, stale policies,
+  revocation before registration, quarantine, ACK after purge, and persistence of
+  ciphertext/receipts/nonces across runtime restarts. Type checking and Wrangler's
+  deployment dry run pass. No Cloudflare deployment was performed.
+- **Six selected instrumentation tests pass** without skips on the Android 17
+  ARM64 emulator. They cover real native iroh control/direct ALPN coexistence,
+  Android HPKE plus native identity signatures, Pause/access checks, existing
+  multi-caregiver retained-history sync, Keystore persistence, mailbox settings
+  opt-in, and existing caregiver background receiving without local collection.
+  Settings tests use synthetic data in temporary users, with a screenshot inspected.
+- Debug and instrumentation APK builds pass; lint reports zero errors and 17
+  warnings. ABI, ELF and APK 16 KB alignment verification passes for all three
+  supported ABIs. The iroh Kotlin/native versions and libraries were not changed.
+
+Commands performed from the repository root:
+
+```sh
+npm --prefix mailbox run check
+npm --prefix mailbox test
+. ./scripts/env.sh
+./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest
+python3 scripts/verify-apk.py
+# Dedicated temporary emulator users, installed and unlocked before each UI fixture:
+adb shell am instrument --user 10 -w -r -e class family.seniorlink.MailboxDeviceTest,family.seniorlink.IrohDeviceTest family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+adb shell am instrument --user 13 -w -r -e class family.seniorlink.MailboxSettingsUiTest -e seniorlink.mailboxFixture true family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+adb shell am instrument --user 11 -w -r -e class family.seniorlink.CaregiverBackgroundServiceTest -e seniorlink.caregiverFixture true family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+git diff --check
+```
+
+This establishes local component interoperability and the existing background
+path, not full two-phone delivery through a deployed Cloudflare service. Physical
+phone Doze/Force stop, offline lease expiry, live deployment persistence and
+end-to-end cloud setup/delivery remain staging checks in
+[the mailbox operator guide](../mailbox/README.md). Static recipient keys do not
+provide forward secrecy; key-descriptor renewal currently needs both phones to
+repeat opt-in setup. No release, native rebuild, public mailbox, push notification
+service or automatic remote activation is included.
+
 ## Heart-rate and battery charts — 0.1.12 (18 September 2026)
 
 - Version 0.1.12 (version code 13) passes all **41 core and 83 Android JVM

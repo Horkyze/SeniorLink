@@ -9,22 +9,30 @@ import java.util.concurrent.ConcurrentHashMap
 
 /** Networking ends when its collection/receive session or usable network window ends. */
 object IrohSync {
-    suspend fun bind(secret: ByteArray): Endpoint = Endpoint.bind(
-        EndpointOptions(secretKey = secret, preset = presetN0(), alpns = listOf(Wire.ALPN)),
+    suspend fun bind(secret: ByteArray, control: Boolean = false): Endpoint = Endpoint.bind(
+        EndpointOptions(secretKey = secret, preset = presetN0(), alpns = if(control) listOf(Wire.ALPN, family.seniorlink.core.mailbox.MailboxWire.CONTROL_ALPN) else listOf(Wire.ALPN)),
     )
+
+    suspend fun serve(secret: ByteArray, store: Store, enabled: () -> Boolean, status: (String) -> Unit): Unit =
+        serve(secret, store, enabled, null, status)
 
     suspend fun serve(
         secret: ByteArray,
         store: Store,
         enabled: () -> Boolean,
+        control: (suspend (Connection, String, () -> Boolean) -> Unit)?,
         status: (String) -> Unit,
-    ): Unit = serveEndpoint(bind(secret), store, enabled, status)
+    ): Unit = serveEndpoint(bind(secret, control != null), store, enabled, control, status)
+
+    suspend fun serveEndpoint(endpoint: Endpoint, store: Store, enabled: () -> Boolean, status: (String) -> Unit): Unit =
+        serveEndpoint(endpoint, store, enabled, null, status)
 
     /** Takes ownership of the endpoint and shuts it down when the service scope ends. */
     suspend fun serveEndpoint(
         endpoint: Endpoint,
         store: Store,
         enabled: () -> Boolean,
+        control: (suspend (Connection, String, () -> Boolean) -> Unit)?,
         status: (String) -> Unit,
     ): Unit = supervisorScope {
         val connections = ConcurrentHashMap<Connection, String>()
@@ -54,7 +62,12 @@ object IrohSync {
                         val peer = connection.remoteId().use { it.toString() }
                         if (!enabled() || !store.approved(peer)) return@launch
                         connections[connection] = peer
-                        serveConnection(connection, endpoint.id().use { it.toString() }, peer, store, enabled)
+                        if (connection.alpn().contentEquals(Wire.ALPN))
+                            serveConnection(connection, endpoint.id().use { it.toString() }, peer, store, enabled)
+                        else {
+                            check(connection.alpn().contentEquals(family.seniorlink.core.mailbox.MailboxWire.CONTROL_ALPN))
+                            requireNotNull(control).invoke(connection, peer, enabled)
+                        }
                     } catch (e: CancellationException) {
                         throw e
                     } catch (_: Exception) {
@@ -123,6 +136,7 @@ object IrohSync {
         secret: ByteArray,
         store: Store,
         pollMs: () -> Long = { 15_000L },
+        setup: (suspend (Endpoint, String) -> Unit)? = null,
         status: (String, String) -> Unit,
     ): Unit = supervisorScope {
         val endpoint = bind(secret)
@@ -133,6 +147,9 @@ object IrohSync {
                 jobs.keys.filter { it !in peers }.forEach { jobs.remove(it)?.cancel() }
                 for (peer in peers) if (jobs[peer]?.isActive != true) {
                     jobs[peer] = launch {
+                        if (setup != null) launch {
+                            while (isActive && store.approved(peer)) { setup(endpoint, peer); delay(15_000) }
+                        }
                         var backoff = 3_000L
                         while (isActive && store.approved(peer)) {
                             try {

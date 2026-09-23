@@ -22,6 +22,7 @@ class SeniorApp : Application() {
     val monitorStatus = MutableStateFlow("Monitoring paused")
     val telegramStatus = MutableStateFlow("Telegram is optional and disabled by default")
     val peerStatus = MutableStateFlow<Map<String, String>>(emptyMap())
+    val mailbox by lazy { family.seniorlink.mailbox.MailboxCoordinator(this) }
     val wearableState = MutableStateFlow(family.seniorlink.wearable.WearableState())
     lateinit var store: Store
         private set
@@ -38,7 +39,10 @@ class SeniorApp : Application() {
                     ) {
                         while (currentCoroutineContext().isActive) {
                             try {
-                                IrohSync.receive(identity, store, pollMs) { peer, status -> peerStatus.update { it + (peer to status) } }
+                                coroutineScope {
+                                    launch { mailbox.receiverLoop(pollMs) }
+                                    IrohSync.receive(identity, store, pollMs, setup = mailbox::setup) { peer, status -> peerStatus.update { it + (peer to status) } }
+                                }
                             } catch (e: CancellationException) { throw e }
                             catch (_: Exception) { peerStatus.value = store.peers().associate { it.id to "Network unavailable — retrying" } }
                             delay(15_000)
@@ -67,6 +71,15 @@ class SeniorApp : Application() {
             IrohAndroid.installAndroidContext(this)
         } catch (_: Throwable) {
             initializationError = "The iroh native library could not initialize. Reinstall a complete APK."
+        }
+        if (initializationError == null) scope.launch {
+            // Revocation cleanup does not restart sharing or renew an active lease.
+            networkWindows(this@SeniorApp).whileAvailable(waiting = {}) {
+                while (isActive) {
+                    try { mailbox.cleanup() } catch (e: CancellationException) { throw e } catch (_: Exception) { }
+                    delay(15_000)
+                }
+            }
         }
     }
 

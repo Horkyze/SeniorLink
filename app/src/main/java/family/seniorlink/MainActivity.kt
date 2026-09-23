@@ -32,6 +32,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.Lifecycle
 import androidx.core.content.ContextCompat
 import family.seniorlink.core.*
+import family.seniorlink.mailbox.MailboxSettings
 import family.seniorlink.data.StoredEvent
 import family.seniorlink.location.LocationContent
 import kotlinx.coroutines.launch
@@ -173,6 +174,7 @@ internal fun SeniorScreen(model: MainViewModel, updates: UpdateViewModel) {
                                 Text("This phone only receives family updates. It does not collect its own battery, wearable, location, unlock activity or SMS.")
                                 Text("Background updates start after connecting a sharing phone. A connection invitation can stay active for up to 5 minutes.")
                             }
+                            MailboxSettings(state, model)
                             BackgroundSettings(state, model)
                             Panel("Privacy and reliability") {
                                 Text("History stays on these phones for up to 7 days, capped at 10,000 events per source. The daily summary groups retained records by type. Open full history to filter and load earlier updates.")

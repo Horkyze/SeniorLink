@@ -4,6 +4,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import family.seniorlink.mailbox.MailboxStore
 import family.seniorlink.core.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,7 +17,8 @@ data class StoredEvent(val source: String, val event: Event)
 data class TelegramJob(val source: String, val event: Event, val attempts: Int)
 
 /** One transaction boundary owns event insertion, deduplication and cursor advancement. */
-class Store(context: Context, name: String = "seniorlink") : SQLiteOpenHelper(context, "$name.db", null, 2), Inbox {
+class Store(context: Context, name: String = "seniorlink") : SQLiteOpenHelper(context, "$name.db", null, 3), Inbox {
+    val mailbox = MailboxStore(this)
     private val prefs = context.getSharedPreferences("$name-settings", Context.MODE_PRIVATE)
     private val revision = MutableStateFlow(0L)
     val changes = revision.asStateFlow()
@@ -33,21 +35,25 @@ class Store(context: Context, name: String = "seniorlink") : SQLiteOpenHelper(co
         db.execSQL("CREATE TABLE counters(source TEXT PRIMARY KEY, sequence INTEGER NOT NULL)")
         db.execSQL("CREATE TABLE events(source TEXT NOT NULL, sequence INTEGER NOT NULL, storedAt INTEGER NOT NULL, json TEXT NOT NULL, kind TEXT NOT NULL, occurredAt INTEGER NOT NULL, PRIMARY KEY(source, sequence))")
         createLocationIndex(db)
+        MailboxStore.create(db)
         db.execSQL("CREATE TABLE telegram(source TEXT NOT NULL, sequence INTEGER NOT NULL, retryAt INTEGER NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(source, sequence), FOREIGN KEY(source, sequence) REFERENCES events(source, sequence) ON DELETE CASCADE)")
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        check(oldVersion == 1 && newVersion == 2) { "A migration is required; never silently discard safety history." }
-        db.execSQL("ALTER TABLE events ADD COLUMN kind TEXT NOT NULL DEFAULT ''")
-        db.execSQL("ALTER TABLE events ADD COLUMN occurredAt INTEGER NOT NULL DEFAULT 0")
-        db.rawQuery("SELECT source,sequence,json FROM events", null).use { cursor ->
-            while (cursor.moveToNext()) {
-                val event = Wire.json.decodeFromString<Event>(cursor.getString(2))
-                db.execSQL("UPDATE events SET kind=?,occurredAt=? WHERE source=? AND sequence=?",
-                    arrayOf(event.kind.name, event.occurredAt, cursor.getString(0), cursor.getLong(1)))
+        check(oldVersion in 1..2 && newVersion == 3) { "A migration is required; never silently discard safety history." }
+        if (oldVersion == 1) {
+            db.execSQL("ALTER TABLE events ADD COLUMN kind TEXT NOT NULL DEFAULT ''")
+            db.execSQL("ALTER TABLE events ADD COLUMN occurredAt INTEGER NOT NULL DEFAULT 0")
+            db.rawQuery("SELECT source,sequence,json FROM events", null).use { cursor ->
+                while (cursor.moveToNext()) {
+                    val event = Wire.json.decodeFromString<Event>(cursor.getString(2))
+                    db.execSQL("UPDATE events SET kind=?,occurredAt=? WHERE source=? AND sequence=?",
+                        arrayOf(event.kind.name, event.occurredAt, cursor.getString(0), cursor.getLong(1)))
+                }
             }
+            createLocationIndex(db)
         }
-        createLocationIndex(db)
+        MailboxStore.create(db)
     }
 
     private fun createLocationIndex(db: SQLiteDatabase) = db.execSQL(
@@ -78,6 +84,7 @@ class Store(context: Context, name: String = "seniorlink") : SQLiteOpenHelper(co
                 if (withdraw) db.delete("events", "source=? AND sequence=?", arrayOf(localId, event.sequence.toString()))
             }
             if (!next.telegram || old.telegramChat != next.telegramChat) db.delete("telegram", null, null)
+            if (old != next && old.role == Role.SHARER) mailbox.invalidate(db)
         }
         check(prefs.edit().putString("settings", Wire.json.encodeToString(next)).commit())
         settings = next
@@ -108,6 +115,7 @@ class Store(context: Context, name: String = "seniorlink") : SQLiteOpenHelper(co
 
     @Synchronized fun removePeer(id: String) {
         transaction { db ->
+            mailbox.closePeer(db, id)
             db.delete("peers", "id=?", arrayOf(id))
             if (settings.role == Role.CAREGIVER) db.delete("events", "source=?", arrayOf(id))
         }
@@ -127,6 +135,7 @@ class Store(context: Context, name: String = "seniorlink") : SQLiteOpenHelper(co
             saved.validate()
             db.execSQL("INSERT OR REPLACE INTO counters(source,sequence) VALUES(?,?)", arrayOf<Any>(source, seq))
             insert(db, source, saved, now)
+            mailbox.enqueue(db, source, seq)
             if (settings.telegram) {
                 db.execSQL("INSERT INTO telegram(source,sequence,retryAt) VALUES(?,?,?)", arrayOf<Any>(source, seq, now))
             }
@@ -301,16 +310,27 @@ class Store(context: Context, name: String = "seniorlink") : SQLiteOpenHelper(co
         "SELECT json FROM events WHERE source=?", arrayOf(source),
     ).use { c -> buildList { while (c.moveToNext()) add(Wire.json.decodeFromString<Event>(c.getString(0))) } }
 
+    internal fun insertMailboxEvent(db: SQLiteDatabase, source: String, event: Event, now: Long) {
+        insert(db, source, event, now)
+        prune(db, source, now)
+        changed()
+    }
+
     private fun insert(db: SQLiteDatabase, source: String, event: Event, now: Long) {
+        val existing = db.rawQuery("SELECT json FROM events WHERE source=? AND sequence=?", arrayOf(source, event.sequence.toString())).use {
+            if (it.moveToFirst()) Wire.json.decodeFromString<Event>(it.getString(0)) else null
+        }
+        if (existing != null) { require(existing == event) { "Conflicting event identity" }; return }
         val values = ContentValues().apply {
             put("source", source); put("sequence", event.sequence); put("storedAt", now)
             put("json", Wire.json.encodeToString(event))
             put("kind", event.kind.name); put("occurredAt", event.occurredAt)
         }
-        db.insertWithOnConflict("events", null, values, SQLiteDatabase.CONFLICT_IGNORE)
+        db.insertOrThrow("events", null, values)
     }
 
     private fun prune(db: SQLiteDatabase, source: String, now: Long) {
+        mailbox.beforeHistoryPrune(source, now)
         db.delete("events", "source=? AND storedAt<?", arrayOf(source, (now - RETENTION_MS).toString()))
         db.execSQL(
             "DELETE FROM events WHERE source=? AND sequence NOT IN (SELECT sequence FROM events WHERE source=? ORDER BY sequence DESC LIMIT 10000)",

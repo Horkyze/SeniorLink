@@ -1,0 +1,14 @@
+{
+  "note": "Synthetic seed 00..1f; public interoperability fixture, never provision this key.",
+  "seed": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+  "id": "03a107bff3ce10be1d70dd18e74bc09967e4d6309ba50d5f1ddc8664125531b8",
+  "origin": "https://mailbox.example",
+  "url": "https://mailbox.example/v1/sources/03a107bff3ce10be1d70dd18e74bc09967e4d6309ba50d5f1ddc8664125531b8/info",
+  "raw": "{\"version\":1}",
+  "created": 1800626400,
+  "nonce": "abababababababababababababababababababababababababababababababab",
+  "input": "(\"@method\" \"@target-uri\" \"content-type\" \"content-digest\");created=1800626400;expires=1800626700;nonce=\"abababababababababababababababababababababababababababababababab\";keyid=\"03a107bff3ce10be1d70dd18e74bc09967e4d6309ba50d5f1ddc8664125531b8\";alg=\"ed25519\";tag=\"seniorlink-mailbox-v1\"",
+  "digest": "sha-256=:JDDxoq0pgtAGeIVIikyJ4hrR18g7EVuo8bIKzIjfrqg=:",
+  "base": "\"@method\": POST\n\"@target-uri\": https://mailbox.example/v1/sources/03a107bff3ce10be1d70dd18e74bc09967e4d6309ba50d5f1ddc8664125531b8/info\n\"content-type\": application/json\n\"content-digest\": sha-256=:JDDxoq0pgtAGeIVIikyJ4hrR18g7EVuo8bIKzIjfrqg=:\n\"@signature-params\": (\"@method\" \"@target-uri\" \"content-type\" \"content-digest\");created=1800626400;expires=1800626700;nonce=\"abababababababababababababababababababababababababababababababab\";keyid=\"03a107bff3ce10be1d70dd18e74bc09967e4d6309ba50d5f1ddc8664125531b8\";alg=\"ed25519\";tag=\"seniorlink-mailbox-v1\"",
+  "signature": "s+DZLv77YNhCbJ4MzQMoZt8QIV5sSZg8uVLZVIeyXlVhLIOY6QflYc/2DbvHpacgLhnYLEWrjXvTylfJSrRNBQ=="
+}

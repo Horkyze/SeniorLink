@@ -27,6 +27,7 @@ data class ScreenState(
     val wearables: List<StoredEvent> = emptyList(),
     val phoneBatteries: List<StoredEvent> = emptyList(),
     val pendingTelegram: Long = 0,
+    val mailboxPeers: List<family.seniorlink.mailbox.MailboxStore.PeerState> = emptyList(),
     val tokenSaved: Boolean = false,
     val fatalError: String? = null,
     val message: String? = null,
@@ -73,6 +74,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private suspend fun refresh() = refreshLock.withLock {
         val current = withContext(Dispatchers.IO) {
+            app.mailbox.refresh()
             val peers = app.store.peers()
             val sources = if (app.store.settings.role == Role.SHARER) listOf(app.publicId) else peers.map { it.id }
             ScreenState(
@@ -83,6 +85,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 wearables = sources.flatMap { app.store.wearables(it) },
                 phoneBatteries = sources.flatMap { app.store.phoneBatteries(it) },
                 pendingTelegram = app.store.pendingTelegram(),
+                mailboxPeers = app.store.mailbox.peers(),
                 tokenSaved = app.secrets.read("telegram")?.isNotEmpty() == true,
             )
         }
@@ -185,7 +188,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         catch (_: Exception) { message("This QR could not be read. Show a new QR on the sharing phone and try again.") }
     }
 
-    fun removePeer(id: String) = action { app.store.removePeer(id) }
+    fun removePeer(id: String) = action { app.store.removePeer(id); app.mailbox.refresh() }
+
+    fun configureMailbox(code: String) = action {
+        require(code.trim().startsWith("seniorlink-mailbox:")) { "Paste the mailbox setup code supplied by the server operator." }
+        val bytes = family.seniorlink.core.mailbox.MailboxWire.unb64(code.trim().removePrefix("seniorlink-mailbox:"))
+        require(bytes.size <= 2048)
+        app.mailbox.configure(family.seniorlink.core.mailbox.MailboxWire.decode(bytes))
+        message("Mailbox configured. Choose the paired phones below to enable queued delivery.")
+    }
+    fun mailboxConsent(peer: String, enabled: Boolean) = action { app.mailbox.consent(peer, enabled) }
 
     fun inspectLocation(stored: StoredEvent) = action {
         require(stored.event.kind == Kind.LOCATION)

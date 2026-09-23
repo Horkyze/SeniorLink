@@ -6,8 +6,8 @@ Caregivers open the same app on their own phones to see check-ins, recent phone
 activity, locations, selected SMS and readings from compatible wearables. Updates
 travel over an encrypted phone-to-phone connection; you don't need to run a server.
 
-**[Download the Android app](https://github.com/Horkyze/SeniorLink/releases/tag/v0.1.12)**
-· [Release notes](docs/releases/v0.1.12.md)
+**[Download the Android app](https://github.com/Horkyze/SeniorLink/releases/tag/v0.1.13)**
+· [Release notes](docs/releases/v0.1.13.md)
 · [Wearable setup](docs/wearables.md)
 · [Build from source](#building-and-contributing)
 
@@ -20,7 +20,21 @@ independently on their own phones.
 This is an early **family pilot**, not a medical device or emergency-response
 service. It does not send emergency alerts or guarantee continuous monitoring.
 
-## What's new in 0.1.12
+## What's new in 0.1.13
+
+- **Optional encrypted queued delivery** lets approved phones connect at different
+  times. Configure a mailbox and enable each other in Settings; keep both phones
+  online with sharing on for the initial setup.
+- Updates stay encrypted for each caregiver. Settings distinguishes pending upload,
+  mailbox storage and caregiver-confirmed receipt. Direct sync continues to work.
+- Pause and revocation persist pending deletion while offline. Retrieval can
+  continue until the source's existing 24-hour authorization lease expires;
+  queued messages expire seven days after their original storage time.
+- The private Cloudflare mailbox is deployed, but an operator must admit each
+  phone's public ID. See [setup instructions](mailbox/README.md). Both phones need
+  0.1.13 for queued delivery; direct sync remains compatible with 0.1.7 and newer.
+
+### Previous chart improvements (0.1.12)
 
 - The heart-rate graph includes the latest received reading before its summary is
   saved and refreshes its time window when data arrives. The number and graph no
@@ -75,7 +89,7 @@ the selected wearable exposes standard Bluetooth battery data; otherwise it show
 **Unknown**. One wearable is selected per sharing phone; caregivers can switch
 between family phones. Physical Galaxy Fit3 battery support is still unverified.
 
-Version 0.1.12 uses sync protocol 3 and can sync with 0.1.7–0.1.11. All paired
+Version 0.1.13 uses sync protocol 3 and can sync directly with 0.1.7–0.1.12. All paired
 phones must use **0.1.7 or newer**; 0.1.6 and older cannot sync with these versions. The
 published APK uses the same signing key as earlier releases; update in place to
 preserve identity, pairing and history.
@@ -86,7 +100,7 @@ You need **Android 8.0 or newer** on the sharing phone and every caregiver phone
 Both roles use the same APK (the Android installation file).
 
 1. **Install SeniorLink on each phone.** Open the release page above, download
-   **SeniorLink-0.1.12-debug.apk** from **Assets**, and open it.
+   **SeniorLink-0.1.13-debug.apk** from **Assets**, and open it.
    Android may ask you to allow installation from the browser or file app.
 2. **Choose each phone's role.** Your family member chooses **Share my information**;
    everyone receiving updates chooses **I'm a caregiver**. New sharing setups select
@@ -120,9 +134,9 @@ when a sharing phone is connected. Turn it off to pause background receiving;
 opening the caregiver app still fetches updates. This does not collect any of
 the caregiver's own information.
 
-**Updating an existing installation?** Install 0.1.12; it can sync with
-0.1.7–0.1.11, but paired phones running 0.1.6 or older must also be updated. The published
-APK uses the same signing key as versions 0.1.0–0.1.11, so install it as an update
+**Updating an existing installation?** Install 0.1.13; it can sync directly with
+0.1.7–0.1.12, but paired phones running 0.1.6 or older must also be updated. The published
+APK uses the same signing key as versions 0.1.0–0.1.12, so install it as an update
 without uninstalling to keep pairing and history. Versions 0.1.3 onward check for
 updates when opened; 0.1.5 onward also offers **Settings → App updates → Check for updates**.
 If an older version's direct download is blocked, open the release page above
@@ -181,9 +195,29 @@ Telegram bot messages are **not end-to-end encrypted**. Keep sensitive SMS bodie
 disabled; the app's verification-code filtering cannot catch every secret. Network
 retries can occasionally duplicate a Telegram post.
 
+## Optional encrypted queued delivery
+
+Version 0.1.13 includes optional delivery through a Cloudflare Workers mailbox.
+An operator must configure the service and admit the participating phones.
+Configure the same public setup code on both phones under **Settings → Encrypted
+queued delivery**, enable each other, and keep both apps open with sharing on to
+finish initial setup. Existing caregiver approval is still required.
+
+After setup, the sharing phone can upload encrypted updates while the caregiver
+is offline. The caregiver retrieves them later, even when the source is offline,
+within the source's **24-hour authorization lease**. Sharing renews that lease;
+messages expire seven days after their original local storage. Settings distinguishes
+pending uploads, server-stored copies and caregiver-confirmed receipts.
+
+Pause or revocation while offline cannot immediately notify the mailbox. Deletion
+remains pending until the app connects; retrieval may continue until the lease
+expires. Already received copies cannot be recalled. Android background restrictions
+still apply. No public service address, server push or automatic deployment is included.
+See [mailbox setup and operation](mailbox/README.md).
+
 ## When will updates arrive?
 
-- **Both phones must be reachable at the same time.** The sharing app must be
+- **Direct delivery needs both phones reachable at the same time.** The sharing app must be
   sharing, and the caregiver app must be open or have background updates enabled.
   Caregivers check about every 15 seconds while open and every minute in the
   background when Android permits execution. A caregiver cannot remotely activate
@@ -200,7 +234,8 @@ retries can occasionally duplicate a Telegram post.
   reopening may still be necessary. Revoked required permissions pause the session.
 - **Sleep and offline periods delay delivery.** Network work waits through Doze
   and blocked/offline connections, then reconnects on a usable network window.
-  Both devices must have an overlapping window. SeniorLink does not hold an
+  Direct delivery needs overlapping windows. With the optional mailbox, each
+  phone can connect separately within the source's authorization lease. SeniorLink does not hold an
   always-on CPU wake lock or manufacture readings that were missed during sleep.
 - **Location after reboot needs extra permission.** Without Android's optional
   **Allow all the time** location grant, fresh background recovery resumes other
@@ -228,7 +263,10 @@ Phone-to-phone sharing uses **iroh** with end-to-end encryption and explicit
 caregiver approval. Public discovery and relay services help phones connect;
 relays cannot read the updates and do not store messages for offline phones.
 Connection metadata is not hidden, and public infrastructure has no availability
-guarantee. The optional Telegram output has different privacy properties, as noted above.
+guarantee. The optional mailbox stores end-to-end encrypted copies on Cloudflare;
+it can see delivery metadata but does not hold event-decryption keys. Its recipient
+encryption keys are static, so captured ciphertext is not forward-secret. The optional
+Telegram output has different privacy properties, as noted above.
 
 History is stored in each app's private database. Cloud/device-transfer backups
 are disabled, and the UI blocks screenshots and recent-app thumbnails. Clearing
@@ -245,7 +283,7 @@ rendered on the phone. Maps need no API key or Google Play Services. See the
 
 | Problem | What to try |
 | --- | --- |
-| No updates arrive | Check Settings → Sharing on the sharing phone and Settings → Receive in background on the caregiver. Both phones must be online; a caregiver with background updates paused can receive while open. Open SeniorLink on both phones if Android restricted restart. Check permissions, battery restrictions and compatible app versions. |
+| No updates arrive | Check Settings → Sharing on the sharing phone and Settings → Receive in background on the caregiver. Direct sync needs both phones online; configured queued delivery can arrive while the source is offline. A caregiver with background updates paused can receive while open. Open SeniorLink on both phones if Android restricted restart. Check permissions, battery restrictions and compatible app versions. |
 | Camera is unavailable for pairing | Use **Copy invitation / Share invitation** on the sharing phone and **Use a shared invitation instead** on the caregiver. Compare the verification code through a trusted conversation. |
 | Pairing expired or the codes differ | Start a new invitation on the sharing phone and keep both apps open. Invitations expire after five minutes. |
 | Wearable is connected but has no readings | Enable measurement on the band, check skin contact and inspect **Wearable → Available Bluetooth data**. Follow the [device checklist](docs/wearables.md#fit3-expectations-and-verification). |
@@ -301,7 +339,7 @@ also be restored without an Android toolchain using Python 3:
 python3 scripts/unpack-pilot.py
 ```
 
-This reconstructs and checksum-verifies `dist/SeniorLink-0.1.12-debug.apk`.
+This reconstructs and checksum-verifies `dist/SeniorLink-0.1.13-debug.apk`.
 The archive parts are not themselves installable. Full APKs, signing material and
 build output remain ignored. CI builds an APK and uploads test reports; it does
 not publish a release automatically.

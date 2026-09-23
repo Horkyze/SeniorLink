@@ -1,0 +1,10 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "seniorlink-mailbox",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-22",
+  "workers_dev": true,
+  "observability": { "enabled": false },
+  "durable_objects": { "bindings": [{ "name": "MAILBOX", "class_name": "SourceMailbox" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["SourceMailbox"] }]
+}

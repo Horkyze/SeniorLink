@@ -14,3 +14,7 @@ dist/*
 .DS_Store
 __pycache__/
 *.pyc
+mailbox/node_modules/
+mailbox/.wrangler/
+mailbox/.dev.vars*
+mailbox/*.secret
