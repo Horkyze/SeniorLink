@@ -15,6 +15,10 @@ jobs:
           distribution: temurin
           java-version: "21"
       - uses: android-actions/setup-android@v3
+        with:
+          # The default "tools platform-tools" fails: current command-line tools no
+          # longer offer the legacy "tools" package. The next step installs what we need.
+          packages: ""
       - uses: gradle/actions/setup-gradle@v4
       - name: Install SDK and NDK
         run: sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;28.2.13676358"
