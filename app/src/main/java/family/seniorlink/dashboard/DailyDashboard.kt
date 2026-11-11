@@ -2,7 +2,7 @@ package family.seniorlink.dashboard
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.rotate
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -85,13 +85,13 @@ internal fun DailyDashboard(
         val day = activity.day?.takeIf { it.source == source }
         DayNavigation(day, activity.request.date ?: LocalDate.now(), onDay, onToday)
         if (activity.error) Text("Saved activity could not be loaded. Reopen this screen to retry.")
-        Card(colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color.White)) {
+        Card(border = Calm.Border) {
             val kinds = listOf(Kind.CHECK_IN, Kind.WEARABLE, Kind.LOCATION, Kind.UNLOCK) +
                 if (day?.counts?.any { it.kind == Kind.SMS && it.count > 0 } == true) listOf(Kind.SMS) else emptyList()
             kinds.forEachIndexed { index, kind ->
                 val count = day?.counts?.firstOrNull { it.kind == kind }
                 Row(Modifier.fillMaxWidth().testTag("digest-${kind.name}").clickable(enabled = day != null && !activity.loading) { onOpen(kind) }
-                    .heightIn(min = 70.dp).padding(14.dp), verticalAlignment = Alignment.CenterVertically,
+                    .heightIn(min = 70.dp).padding(16.dp), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     val icon = when (kind) {
                         Kind.WEARABLE -> R.drawable.ic_heart_outline
@@ -107,9 +107,9 @@ internal fun DailyDashboard(
                             "${count.count} recorded · Last ${DateTimeFormatter.ofPattern("HH:mm").withZone(java.time.ZoneId.systemDefault()).format(Instant.ofEpochMilli(count.lastAt))}",
                             style = MaterialTheme.typography.bodySmall, color = Calm.Muted)
                     }
-                    Text("›", color = Calm.Muted)
+                    Icon(painterResource(R.drawable.ic_chevron_right), null, Modifier.size(20.dp), tint = Calm.Muted)
                 }
-                if (index < kinds.lastIndex) HorizontalDivider(color = Calm.Line, modifier = Modifier.padding(horizontal = 14.dp))
+                if (index < kinds.lastIndex) HorizontalDivider(color = Calm.Line, modifier = Modifier.padding(horizontal = 16.dp))
             }
         }
         TextButton(onClick = { onOpen(null) }, enabled = day != null, modifier = Modifier.align(Alignment.CenterHorizontally)) {
@@ -123,7 +123,7 @@ internal fun DailyDashboard(
 private fun CompactHeart(snapshot: WearableSnapshot, now: Long, onClick: () -> Unit) {
     val pulse = snapshot.values.firstOrNull { it.metric == WearableMetric.HEART_RATE }
     val points = snapshot.points.filter { it.at in (now - 3_600_000)..now }
-    Card(onClick = onClick, colors = CardDefaults.cardColors(containerColor = Calm.Heart), shape = RoundedCornerShape(20.dp)) {
+    Card(onClick = onClick, colors = CardDefaults.cardColors(containerColor = Calm.Heart)) {
         val value: @Composable () -> Unit = {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text("Heart rate", fontWeight = FontWeight.SemiBold)
@@ -153,13 +153,17 @@ internal fun DayNavigation(day: ActivityDay?, selected: LocalDate, onDay: (Local
     var picking by remember { mutableStateOf(false) }
     val today = LocalDate.now()
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        TextButton(onClick = { onDay(selected.minusDays(1)) }, enabled = day != null && selected > day.firstDate,
-            modifier = Modifier.testTag("previous-day").semantics { contentDescription = "Previous day" }) { Text("‹") }
+        IconButton(onClick = { onDay(selected.minusDays(1)) }, enabled = day != null && selected > day.firstDate,
+            modifier = Modifier.testTag("previous-day").semantics { contentDescription = "Previous day" }) {
+            Icon(painterResource(R.drawable.ic_chevron_right), null, Modifier.rotate(180f))
+        }
         TextButton(onClick = { picking = true }, modifier = Modifier.weight(1f).testTag("choose-day")) {
             Text((if (selected == today) "Today, " else "") + selected.format(DateTimeFormatter.ofPattern("d MMM yyyy")), fontWeight = FontWeight.SemiBold)
         }
-        TextButton(onClick = { onDay(selected.plusDays(1)) }, enabled = day != null && selected < day.lastDate,
-            modifier = Modifier.testTag("next-day").semantics { contentDescription = "Next day" }) { Text("›") }
+        IconButton(onClick = { onDay(selected.plusDays(1)) }, enabled = day != null && selected < day.lastDate,
+            modifier = Modifier.testTag("next-day").semantics { contentDescription = "Next day" }) {
+            Icon(painterResource(R.drawable.ic_chevron_right), null)
+        }
     }
     if (selected != today) TextButton(onClick = onToday) { Text("Back to today") }
     if (picking) {

@@ -206,3 +206,22 @@ The emulator tests do not establish manufacturer-specific battery behavior.
   sheets, Close, filters and Load earlier must stay reachable without clipped text.
 - Verify the dashboard, preview sheet and history still protect screenshots and
   recent-app thumbnails. Use only synthetic fixtures for captured verification.
+
+## Reduced background energy use — 0.1.14
+
+These changes are covered by JVM tests only; none is established on real phones.
+
+- Caregiver, app closed: updates should arrive within about five minutes when both
+  phones are reachable. Opening the app should check at once, not after the wait.
+- Sharing phone with a mailbox: a new event should upload promptly. Pause sharing,
+  disable a caregiver and remove a caregiver; each should reach the mailbox within
+  seconds while online, and after reconnecting when offline.
+- Telegram: a new event should post promptly; a failed post should retry.
+- Wearable: after discovery the app asks Android for a low-power Bluetooth link.
+  On each band, confirm heart-rate readings still arrive continuously and the
+  two-minute summaries are complete. Walk out of range for ten minutes and
+  return; reconnection may now take up to five minutes.
+- Compare Android's per-app battery estimate over a full day against 0.1.13 on
+  the same phones, with and without a wearable and a mailbox.
+- Review every tab at normal and large text sizes after the visual changes:
+  bordered cards, switch rows with descriptions, and day-navigation arrows.

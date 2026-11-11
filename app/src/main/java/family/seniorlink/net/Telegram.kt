@@ -5,6 +5,7 @@ import family.seniorlink.core.Event
 import family.seniorlink.core.Kind
 import family.seniorlink.monitor.MonitorService
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.*
 import java.net.HttpURLConnection
 import java.net.URL
@@ -19,6 +20,7 @@ object Telegram {
 
     suspend fun run(app: SeniorApp) {
         while (currentCoroutineContext().isActive) {
+            val revision = app.store.changes.value
             // Live settings edits must not mix an old destination with a new bot token.
             val delivery = synchronized(app.store) {
                 val settings = app.store.settings
@@ -38,7 +40,10 @@ object Telegram {
                 delay(1000)
                 continue
             }
-            delay(15_000)
+            // New events and settings edits bump the revision; the timeout only serves scheduled retries.
+            val retries = app.store.settings.telegram && app.store.pendingTelegram() > 0
+            if (retries) withTimeoutOrNull(30_000) { app.store.changes.first { it != revision } }
+            else app.store.changes.first { it != revision }
         }
     }
 

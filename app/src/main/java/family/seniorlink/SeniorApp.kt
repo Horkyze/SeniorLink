@@ -31,7 +31,7 @@ class SeniorApp : Application() {
     lateinit var backgroundSession: BackgroundSession
         private set
     internal val caregiverReceiver by lazy {
-        CaregiverReceiver(scope) { pollMs ->
+        CaregiverReceiver(scope) { idle ->
             while (currentCoroutineContext().isActive) {
                 try {
                     networkWindows(this).whileAvailable(
@@ -40,8 +40,8 @@ class SeniorApp : Application() {
                         while (currentCoroutineContext().isActive) {
                             try {
                                 coroutineScope {
-                                    launch { mailbox.receiverLoop(pollMs) }
-                                    IrohSync.receive(identity, store, pollMs, setup = mailbox::setup) { peer, status -> peerStatus.update { it + (peer to status) } }
+                                    launch { mailbox.receiverLoop(idle) }
+                                    IrohSync.receive(identity, store, idle, setup = mailbox::setup) { peer, status -> peerStatus.update { it + (peer to status) } }
                                 }
                             } catch (e: CancellationException) { throw e }
                             catch (_: Exception) { peerStatus.value = store.peers().associate { it.id to "Network unavailable — retrying" } }
@@ -74,12 +74,7 @@ class SeniorApp : Application() {
         }
         if (initializationError == null) scope.launch {
             // Revocation cleanup does not restart sharing or renew an active lease.
-            networkWindows(this@SeniorApp).whileAvailable(waiting = {}) {
-                while (isActive) {
-                    try { mailbox.cleanup() } catch (e: CancellationException) { throw e } catch (_: Exception) { }
-                    delay(15_000)
-                }
-            }
+            networkWindows(this@SeniorApp).whileAvailable(waiting = {}) { mailbox.cleanupLoop() }
         }
     }
 

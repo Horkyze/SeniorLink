@@ -11,7 +11,8 @@ class BackgroundReceiveTest {
     @Test fun screenAndServiceShareOneReceiverAndBackgroundPollingIsSlower() = runTest {
         var starts = 0
         var stops = 0
-        var poll: (() -> Long)? = null
+        var poll: (suspend () -> Unit)? = null
+        suspend fun waited(): Long { val start = testScheduler.currentTime; poll!!(); return testScheduler.currentTime - start }
         val receiver = CaregiverReceiver(backgroundScope) { interval ->
             starts++
             poll = interval
@@ -21,18 +22,22 @@ class BackgroundReceiveTest {
         assertEquals(0, starts)
         receiver.visible(true)
         runCurrent()
-        assertEquals(15_000L, poll!!())
+        assertEquals(15_000L, waited())
         receiver.background(true)
         receiver.visible(false)
         runCurrent()
         assertEquals(1, starts)
         assertEquals(0, stops)
-        assertEquals(60_000L, poll!!())
+        assertEquals(CaregiverReceiver.BACKGROUND_MS, waited())
+        // Opening the app ends a background wait at once.
+        val early = async { waited() }
+        advanceTimeBy(1_000)
         receiver.visible(true)
         receiver.background(false)
         runCurrent()
+        assertEquals(1_000L, early.await())
         assertEquals(1, starts)
-        assertEquals(15_000L, poll!!())
+        assertEquals(15_000L, waited())
         receiver.visible(false)
         runCurrent()
         assertEquals(1, stops)

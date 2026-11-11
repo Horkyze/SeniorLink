@@ -6,8 +6,8 @@ Caregivers open the same app on their own phones to see check-ins, recent phone
 activity, locations, selected SMS and readings from compatible wearables. Updates
 travel over an encrypted phone-to-phone connection; you don't need to run a server.
 
-**[Download the Android app](https://github.com/Horkyze/SeniorLink/releases/tag/v0.1.13)**
-· [Release notes](docs/releases/v0.1.13.md)
+**[Download the Android app](https://github.com/Horkyze/SeniorLink/releases/tag/v0.1.14)**
+· [Release notes](docs/releases/v0.1.14.md)
 · [Wearable setup](docs/wearables.md)
 · [Build from source](#building-and-contributing)
 
@@ -20,7 +20,22 @@ independently on their own phones.
 This is an early **family pilot**, not a medical device or emergency-response
 service. It does not send emergency alerts or guarantee continuous monitoring.
 
-## What's new in 0.1.13
+## What's new in 0.1.14
+
+- **Less background battery use.** SeniorLink now waits for an actual change
+  instead of checking every 15 seconds. Mailbox uploads, mailbox cleanup and
+  Telegram forwarding run when there is something to send. Pause and revocation
+  still reach the mailbox at once while online.
+- **Caregiver phones check about every five minutes while the app is closed**,
+  instead of every minute. Opening the app checks at once.
+- **Wearable connections ask Android for a low-power Bluetooth link**, and an
+  out-of-range band is retried at most every five minutes instead of every minute.
+- **A more consistent look**: one card style, one type scale, switch rows with
+  their explanation attached, and clearer day navigation.
+- These savings are covered by automated tests but have not been measured on
+  phones. Direct sync and the mailbox remain compatible with 0.1.13.
+
+### Previous queued delivery (0.1.13)
 
 - **Optional encrypted queued delivery** lets approved phones connect at different
   times. Configure a mailbox and enable each other in Settings; keep both phones
@@ -219,8 +234,9 @@ See [mailbox setup and operation](mailbox/README.md).
 
 - **Direct delivery needs both phones reachable at the same time.** The sharing app must be
   sharing, and the caregiver app must be open or have background updates enabled.
-  Caregivers check about every 15 seconds while open and every minute in the
-  background when Android permits execution. A caregiver cannot remotely activate
+  Caregivers check about every 15 seconds while open and about every five minutes
+  in the background when Android permits execution, to save battery. Opening the
+  app checks at once. A caregiver cannot remotely activate
   sharing or wake a stopped phone. There are no server push alerts.
 - **Missed deliveries can catch up.** Collected history stays on the phones for up
   to seven days, capped at 10,000 events per source. Each caregiver catches up

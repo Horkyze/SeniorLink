@@ -328,7 +328,7 @@ class MonitorService : Service() {
                 try {
                     app.backgroundSession.pause()
                     if (app.store.settings.role == Role.SHARER) app.store.mailbox.sharing(false)
-                    app.mailbox.refresh()
+                    app.mailbox.kick()
                 }
                 finally {
                     app.caregiverReceiver.background(false)

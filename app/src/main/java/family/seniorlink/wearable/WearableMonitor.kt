@@ -24,6 +24,9 @@ class WearableMonitor(
     private val pollMs: Long = 300_000,
     private val retryMs: Long = 3_000,
 ) {
+    // Each direct connection attempt scans at a high duty cycle; an absent band is retried at most this often.
+    private companion object { const val MAX_RETRY_MS = 300_000L }
+
     suspend fun run(
         address: String,
         name: String,
@@ -162,7 +165,7 @@ class WearableMonitor(
                     // A flapping connection must not produce an event on every reconnect.
                     if (lastSaved.get() == 0L || clock() - lastSaved.get() >= intervalMs) flush()
                 }
-                if (enabled()) { delay(backoff); backoff = (backoff * 2).coerceAtMost(60_000) }
+                if (enabled()) { delay(backoff); backoff = (backoff * 2).coerceAtMost(MAX_RETRY_MS) }
             }
         } finally {
             // The caller closes consent before cancellation, so Pause never emits a buffered update afterwards.

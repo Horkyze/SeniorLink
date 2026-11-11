@@ -42,6 +42,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     internal val activityBrowser = family.seniorlink.dashboard.ActivityBrowser(viewModelScope, app.store) { app.publicId }
     private val monitorIntent = Intent(app, MonitorService::class.java)
     private var visible = false
+    private var stale = false
     @Volatile private var inspectedLocationKey: Pair<String, Long>? = null
     val permissionRequest = MutableStateFlow<List<String>>(emptyList())
     val savingSettings = MutableStateFlow(false)
@@ -59,6 +60,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 withContext(Dispatchers.IO) { app.publicId }
                 app.store.changes.collect {
+                    // A hidden screen reloads once on return instead of after every background event.
+                    if (!visible && screen.value.ready) { stale = true; return@collect }
                     val firstRefresh = !screen.value.ready
                     refresh()
                     reconcileReceiver()
@@ -99,6 +102,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (!active) wearableScanner.stop()
         if (active) reconcileBackground(resumeExisting = true)
         reconcileReceiver()
+        if (active && stale) {
+            stale = false
+            viewModelScope.launch { refresh(); reconcileReceiver(); reconcileBackground() }
+        }
     }
 
     private fun reconcileBackground(resumeExisting: Boolean = false) {
@@ -188,7 +195,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         catch (_: Exception) { message("This QR could not be read. Show a new QR on the sharing phone and try again.") }
     }
 
-    fun removePeer(id: String) = action { app.store.removePeer(id); app.mailbox.refresh() }
+    fun removePeer(id: String) = action { app.store.removePeer(id); app.mailbox.kick() }
 
     fun configureMailbox(code: String) = action {
         require(code.trim().startsWith("seniorlink-mailbox:")) { "Paste the mailbox setup code supplied by the server operator." }

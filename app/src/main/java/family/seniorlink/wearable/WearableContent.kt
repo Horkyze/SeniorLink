@@ -19,7 +19,6 @@ import family.seniorlink.ScreenState
 import family.seniorlink.Toggle
 import family.seniorlink.core.*
 import family.seniorlink.formatTime
-import kotlinx.coroutines.delay
 import java.util.Locale
 
 @Composable
@@ -85,8 +84,7 @@ internal fun WearableContent(
     var selected by rememberSaveable { mutableStateOf<String?>(null) }
     var history by rememberSaveable { mutableStateOf(false) }
     var diagnostics by rememberSaveable { mutableStateOf(false) }
-    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(Unit) { while (true) { delay(30_000); now = System.currentTimeMillis() } }
+    val now = family.seniorlink.dashboard.rememberReadingTime()
     val source = if (sharer) state.publicId else state.peers.firstOrNull { it.id == (selectedSource ?: selected) }?.id ?: state.peers.firstOrNull()?.id
     val events = state.wearables.filter { it.source == source }.sortedByDescending { it.event.occurredAt }
     val snapshot = remember(state, live, source) { wearableSnapshot(state, live, source) }

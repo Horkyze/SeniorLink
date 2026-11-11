@@ -2,7 +2,6 @@ package family.seniorlink.dashboard
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -28,7 +27,7 @@ internal fun PhoneBatteryCard(events: List<StoredEvent>, now: Long, missing: Str
     val accent = if (low) Calm.Low else Calm.Green
     val modifier = Modifier.fillMaxWidth().testTag("phone-battery-card")
     Card(if (onClick == null) modifier else modifier.clickable(onClick = onClick),
-        shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(
+        border = Calm.Border, colors = CardDefaults.cardColors(
             containerColor = if (low) Calm.LowBackground else Color.White, contentColor = Calm.Ink)) {
         val value: @Composable () -> Unit = {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {

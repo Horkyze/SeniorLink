@@ -1,5 +1,6 @@
 package family.seniorlink.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
@@ -30,6 +31,8 @@ internal object Calm {
     val Chart = Color(0xFFB4495D)
     val Low = Color(0xFF9C5226)
     val LowBackground = Color(0xFFFFF0DF)
+    /** Every card carries the same hairline so white cards read clearly on the page background. */
+    val Border = BorderStroke(1.dp, Line)
 }
 
 @Composable
@@ -45,24 +48,38 @@ internal fun CalmTheme(content: @Composable () -> Unit) {
             surface = Color.White, onSurface = Calm.Ink,
             surfaceVariant = Calm.Soft, onSurfaceVariant = Calm.Muted,
             surfaceContainer = Color.White, surfaceContainerLow = Color.White,
-            surfaceContainerHigh = Calm.Soft, surfaceContainerHighest = Calm.Soft,
+            surfaceContainerHigh = Calm.Soft, surfaceContainerHighest = Color.White,
             outline = Calm.Muted, outlineVariant = Calm.Line,
         ),
-        shapes = Shapes(small = RoundedCornerShape(12.dp), medium = RoundedCornerShape(18.dp), large = RoundedCornerShape(24.dp)),
+        shapes = Shapes(small = RoundedCornerShape(8.dp), medium = RoundedCornerShape(12.dp), large = RoundedCornerShape(16.dp)),
+        // One type scale: screens pick a role instead of setting sizes and weights by hand.
+        typography = Typography().run { copy(
+            headlineMedium = headlineSmall.copy(fontWeight = FontWeight.Bold),
+            headlineSmall = headlineSmall.copy(fontWeight = FontWeight.Bold),
+            titleLarge = titleLarge.copy(fontSize = 20.sp, lineHeight = 26.sp, fontWeight = FontWeight.SemiBold),
+            titleMedium = titleMedium.copy(fontWeight = FontWeight.SemiBold),
+            labelLarge = labelLarge.copy(fontWeight = FontWeight.SemiBold),
+        ) },
         content = content,
     )
 }
 
 @Composable
 internal fun CalmAppBar(initial: String? = null) {
-    Row(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 20.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Icon(painterResource(R.drawable.ic_heart_outline), null, Modifier.size(25.dp), tint = Calm.Green)
-        Text("SeniorLink", Modifier.weight(1f), fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Calm.Ink)
-        if (!initial.isNullOrBlank()) Surface(shape = CircleShape, color = Calm.Soft, contentColor = Calm.Green) {
-            Box(Modifier.sizeIn(minWidth = 36.dp, minHeight = 36.dp).padding(8.dp), contentAlignment = Alignment.Center) {
-                Text(initial, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+    // Same surface and hairline as the navigation bar.
+    Surface(color = Color.White) {
+        Column {
+            Row(Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 20.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Icon(painterResource(R.drawable.ic_heart_outline), null, Modifier.size(24.dp), tint = Calm.Green)
+                Text("SeniorLink", Modifier.weight(1f), style = MaterialTheme.typography.titleLarge, color = Calm.Ink)
+                if (!initial.isNullOrBlank()) Surface(shape = CircleShape, color = Calm.Soft, contentColor = Calm.Green) {
+                    Box(Modifier.sizeIn(minWidth = 36.dp, minHeight = 36.dp).padding(8.dp), contentAlignment = Alignment.Center) {
+                        Text(initial, style = MaterialTheme.typography.labelLarge)
+                    }
+                }
             }
+            HorizontalDivider(color = Calm.Line)
         }
     }
 }

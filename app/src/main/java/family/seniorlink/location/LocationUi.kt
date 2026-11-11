@@ -55,7 +55,7 @@ fun LocationContent(
         cameraRequest++
         onSelectLocation()
     }
-    Text("Location", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+    Text("Location", style = MaterialTheme.typography.headlineSmall)
     if (phones.size > 1) {
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             phones.forEach { (id, label) ->
@@ -64,8 +64,8 @@ fun LocationContent(
         }
     }
     if (selected == null) {
-        Card(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Card(Modifier.fillMaxWidth(), border = family.seniorlink.ui.Calm.Border) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("No location yet", style = MaterialTheme.typography.titleLarge)
                 Text(when {
                     state.settings.role == Role.SHARER && !state.settings.location ->
@@ -83,9 +83,9 @@ fun LocationContent(
             }
         }
     } else {
-        Card(Modifier.fillMaxWidth()) {
+        Card(Modifier.fillMaxWidth(), border = family.seniorlink.ui.Calm.Border) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Column(Modifier.padding(start = 18.dp, end = 18.dp, top = 18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(name, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                     Text(if (selected == latest) "Latest known location" else "Previous location",
                         style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
@@ -97,7 +97,7 @@ fun LocationContent(
                     cameraRequest = cameraRequest, onSelect = select,
                     modifier = Modifier.fillMaxWidth().height(300.dp),
                 )
-                Column(Modifier.padding(start = 18.dp, end = 18.dp, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Teal: latest known • Amber: previous • Ring: selected", style = MaterialTheme.typography.bodySmall)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         OutlinedButton(onClick = { select(latest!!.event.sequence) }) { Text("Latest location") }

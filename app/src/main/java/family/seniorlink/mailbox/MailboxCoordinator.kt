@@ -6,6 +6,8 @@ import family.seniorlink.core.Role
 import family.seniorlink.core.mailbox.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -20,8 +22,23 @@ class MailboxCoordinator(private val app: SeniorApp) {
     private val setupLock=Mutex()
     private fun report(peer: String, text: String) { statuses.update { it+(peer to text) }; refresh() }
     fun refresh() { summary.value=local.summary() }
-    fun configure(service: MailboxService) { local.configure(service);refresh() }
-    fun consent(peer: String, enabled: Boolean) { local.enable(peer,enabled);report(peer,if(enabled) "Open both phones to finish mailbox setup" else "Queued delivery disabled; pending deletion will retry") }
+    private val kicks=MutableStateFlow(0)
+    /** Consent, pause or revocation changed: run mailbox work now instead of at the next idle check. */
+    fun kick() { kicks.update { it+1 };refresh() }
+    /** Sleeps until a kick, a store change or the timeout, so idle phones make no periodic requests. */
+    private suspend fun idle(ms: Long, kick: Int, revision: Long?=null) {
+        withTimeoutOrNull(ms) { combine(kicks,app.store.changes) { k,r -> k!=kick || revision!=null && r!=revision }.first { it } }
+    }
+    private fun cleanupPending()=local.cleanups().isNotEmpty() || app.store.settings.role==Role.SHARER && !local.sharingAllowed() && local.info()!=null && local.policyDirty()
+    suspend fun cleanupLoop() {
+        while(currentCoroutineContext().isActive) {
+            val kick=kicks.value
+            val pending=try { cleanup();cleanupPending() } catch(e: CancellationException) { throw e } catch(_: Exception) { true }
+            idle(if(pending) RETRY_MS else IDLE_MS,kick)
+        }
+    }
+    fun configure(service: MailboxService) { local.configure(service);kick() }
+    fun consent(peer: String, enabled: Boolean) { local.enable(peer,enabled);kick();report(peer,if(enabled) "Open both phones to finish mailbox setup" else "Queued delivery disabled; pending deletion will retry") }
     private fun key(): MailboxCrypto.Key = synchronized(app.secrets) {
         val saved=app.secrets.read("mailbox-x25519")
         if(saved!=null) { require(saved.size==64);MailboxCrypto.Key(saved.copyOfRange(0,32),saved.copyOfRange(32,64)) }
@@ -67,7 +84,7 @@ class MailboxCoordinator(private val app: SeniorApp) {
                 }
                 stream.send().use { it.writeAll(MailboxWire.encode(response));it.finish();it.stopped() }
             }
-        };refresh()
+        };kick()
     }
     /** Called from the caregiver's already-owned endpoint; old phones simply reject this ALPN. */
     suspend fun setup(endpoint: Endpoint, source: String) {
@@ -119,6 +136,8 @@ class MailboxCoordinator(private val app: SeniorApp) {
     }
     suspend fun sourceLoop(enabled: () -> Boolean) {
         while(currentCoroutineContext().isActive && enabled()) {
+            val kick=kicks.value; val revision=app.store.changes.value
+            var busy=false
             try {
                 cleanup(); val service=local.service()
                 if(service!=null && local.peers().any { it.enabled }) {
@@ -128,10 +147,12 @@ class MailboxCoordinator(private val app: SeniorApp) {
                         require(info.source==identity.id);local.saveInfo(info)
                     }
                     if(enabled()) sourceTick(service,enabled)
+                    // Unsent work retries soon; otherwise only a new event, a kick or the slow receipt check wakes the radio.
+                    busy=local.policyDirty() || local.outgoing().isNotEmpty()
                 }
             } catch(e: CancellationException) { throw e }
-            catch(_: Exception) { local.peers().filter { it.enabled }.forEach { report(it.peer,"Mailbox unavailable; saved updates will retry") } }
-            refresh();delay(15_000)
+            catch(_: Exception) { busy=true;local.peers().filter { it.enabled }.forEach { report(it.peer,"Mailbox unavailable; saved updates will retry") } }
+            refresh();idle(if(busy) RETRY_MS else IDLE_MS,kick,revision)
         }
     }
     private fun sourceTick(service: MailboxService, enabled: () -> Boolean) {
@@ -177,7 +198,7 @@ class MailboxCoordinator(private val app: SeniorApp) {
             } catch(_: Exception) { report(item.peer,"Upload will retry; other caregivers continue") }
         }
     }
-    suspend fun receiverLoop(pollMs: () -> Long) {
+    suspend fun receiverLoop(idle: suspend () -> Unit) {
         while(currentCoroutineContext().isActive) {
             supervisorScope {
                 local.peers().filter { it.enabled && it.acceptance!=null }.forEach { peer -> launch {
@@ -185,7 +206,7 @@ class MailboxCoordinator(private val app: SeniorApp) {
                     catch(e: CancellationException) { throw e }
                     catch(_: Exception) { report(peer.peer,"Mailbox unavailable; showing saved updates") }
                 } }
-            };refresh();delay(pollMs())
+            };refresh();idle()
         }
     }
     private fun receive(peer: MailboxStore.PeerState) {
@@ -228,6 +249,7 @@ class MailboxCoordinator(private val app: SeniorApp) {
             else -> "Mailbox checked; source may be offline"
         })
     }
+    private companion object { const val RETRY_MS=15_000L; const val IDLE_MS=300_000L }
     private fun sendReceipts(service: MailboxService, source: String, grantId: String) {
         val receipts=local.pendingReceipts(source)
         if(receipts.isNotEmpty() && local.enabled(source)) {

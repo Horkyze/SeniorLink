@@ -1,5 +1,54 @@
 # Verification
 
+## Release packaging — 0.1.14 (11 November 2026)
+
+- Version 0.1.14 (version code 15) passes **46 core and 97 Android JVM tests**,
+  without failures or skips. Debug and instrumentation APK builds pass; lint
+  reports zero errors and 17 warnings, unchanged from 0.1.13.
+- The JVM test for the caregiver receiver covers the five-minute background wait
+  and the immediate check when the app opens.
+- **Instrumentation suite on the Android 17 ARM64 emulator: 45 of 49 tests pass
+  and four are skipped** because they need fixture arguments that were not
+  supplied (caregiver background delivery, daily summary groups, mailbox
+  settings opt-in and approved-connection start). In the full run, 43 passed
+  and two failed for reasons of test environment: the fresh-install permission
+  test ran against an installation that already had a role, and the pairing
+  camera test did not close in time. Each passes when run alone, the permission
+  test in a fresh temporary user that was removed afterwards.
+- The baseline 0.1.13 APK matches the published digest
+  `025f60c5aeb7fa984c93845ccf54a4d0ca5411e5475ded6f9706106f112ed350`.
+  Both APK signatures verify with certificate SHA-256
+  `7e4f9088dfb6e1a7175ed42dc7a9d1f32717a21d28165cead7b6adfa04cbc302`.
+  Installing 0.1.13 then updating in place to 0.1.14 succeeds on the emulator.
+- All 12 native libraries are byte-identical to 0.1.13. All supported ABI and
+  16 KB ELF/ZIP alignment checks pass. Seven archive parts reconstruct the tested
+  APK exactly in an isolated temporary directory. APK SHA-256:
+  `6b9c8abcf517cf75d0d2b39b092cebfeaa8e80ab725c0f69dd0c838af89dae87`.
+- **Not established:** no battery measurement was made, on an emulator or a
+  phone. Mailbox and Telegram timing were not exercised against live services.
+  The low-power Bluetooth request was not exercised with a physical wearable.
+  The restyled screens were exercised by the UI tests but not reviewed by eye,
+  because the app blocks screenshots. See the 0.1.14 section of
+  [acceptance.md](acceptance.md).
+
+Commands performed:
+
+```sh
+. ./scripts/env.sh
+./gradlew :core:test :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest
+python3 scripts/verify-apk.py
+# Verified both APK certificates using Android build-tools apksigner.
+adb install -r dist/SeniorLink-0.1.13-debug.apk
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+./gradlew :app:connectedDebugAndroidTest --continue
+adb shell am instrument -w -e class family.seniorlink.PairingCameraTest family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+# In a temporary user with both APKs installed:
+adb shell am instrument --user 13 -w -e class family.seniorlink.DefaultSharingPermissionTest family.seniorlink.test/androidx.test.runner.AndroidJUnitRunner
+python3 scripts/package-pilot.py
+# Ran unpack-pilot.py in a temporary copy containing only SHA256SUMS and seven parts.
+git diff --check
+```
+
 ## Release packaging — 0.1.13 (23 September 2026)
 
 - Version 0.1.13 (version code 14) passes **46 core and 97 Android JVM tests**,

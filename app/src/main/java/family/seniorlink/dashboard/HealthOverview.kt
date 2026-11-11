@@ -2,7 +2,6 @@ package family.seniorlink.dashboard
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.painterResource
@@ -29,6 +28,9 @@ import family.seniorlink.core.WearableMetric
 import family.seniorlink.formatTime
 import family.seniorlink.wearable.WearableState
 import family.seniorlink.wearable.formatWearable
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.delay
 import java.time.Instant
 import java.time.ZoneId
@@ -38,7 +40,11 @@ import kotlin.math.roundToInt
 @Composable
 internal fun rememberReadingTime(vararg readings: Any?): Long {
     var now by remember(*readings) { mutableLongStateOf(System.currentTimeMillis()) }
-    LaunchedEffect(*readings) { while (true) { delay(30_000); now = System.currentTimeMillis() } }
+    val lifecycle = LocalLifecycleOwner.current
+    // No timer wakeups while the screen is hidden.
+    LaunchedEffect(lifecycle, *readings) {
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) { while (true) { now = System.currentTimeMillis(); delay(30_000) } }
+    }
     return now
 }
 
@@ -95,8 +101,8 @@ internal fun HeartRateCard(snapshot: WearableSnapshot, now: Long) {
     val points = snapshot.points.filter { it.at in start..now }
     val pulse = snapshot.values.firstOrNull { it.metric == WearableMetric.HEART_RATE }
     val noContact = snapshot.values.any { it.metric == WearableMetric.CONTACT && it.value == 0.0 }
-    Card(colors = CardDefaults.cardColors(containerColor = Calm.Heart, contentColor = Calm.Ink), shape = RoundedCornerShape(24.dp)) {
-        Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Card(colors = CardDefaults.cardColors(containerColor = Calm.Heart, contentColor = Calm.Ink)) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween,
                 verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
@@ -124,7 +130,7 @@ internal fun HeartRateCard(snapshot: WearableSnapshot, now: Long) {
             } else key(hours) { ReadingGraph(points, start, now, Calm.Chart, height = 160, interactive = true) }
             FlowRow(Modifier.align(Alignment.End), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 listOf(1 to "1 hour", 24 to "24 hours").forEach { (value, label) ->
-                    Surface(shape = RoundedCornerShape(10.dp), color = if (hours == value) Color.White else Color.Transparent) {
+                    Surface(shape = MaterialTheme.shapes.small, color = if (hours == value) Color.White else Color.Transparent) {
                         Box(Modifier.testTag("heart-hours-$value").selectable(hours == value, role = androidx.compose.ui.semantics.Role.Tab,
                             onClick = { hours = value }).heightIn(min = 48.dp).padding(horizontal = 14.dp, vertical = 12.dp),
                             contentAlignment = Alignment.Center) {
@@ -163,10 +169,10 @@ private fun BatteryCard(title: String, icon: Int, percent: Int?, at: Long?, now:
     compact: Boolean = false, onClick: (() -> Unit)? = null) {
     val low = percent != null && percent <= 20
     val color = if (low) Calm.Low else Calm.Green
-    Card(if (onClick == null) modifier else modifier.clickable(onClick = onClick), shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(
+    Card(if (onClick == null) modifier else modifier.clickable(onClick = onClick), border = Calm.Border, colors = CardDefaults.cardColors(
         containerColor = if (low) Calm.LowBackground else Color.White, contentColor = Calm.Ink,
     )) {
-        Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             if (compact) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(painterResource(icon), null, Modifier.size(20.dp), tint = color)

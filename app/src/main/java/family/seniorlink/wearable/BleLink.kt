@@ -108,6 +108,8 @@ class AndroidBleLink(private val context: Context, private val address: String) 
         }
         withTimeout(25_000) { ready.await() }
         operation("discover") { it.discoverServices() }
+        // Readings arrive about once a second; a relaxed link interval saves radio power on phone and band.
+        gatt?.requestConnectionPriority(BluetoothGatt.CONNECTION_PRIORITY_LOW_POWER)
         val result = gatt?.services.orEmpty().flatMap { it.characteristics }.take(256)
         attributes.clear()
         result.forEach { attributes[key(it)] = it }

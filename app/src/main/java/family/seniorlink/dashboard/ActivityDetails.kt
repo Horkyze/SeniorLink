@@ -80,7 +80,7 @@ internal fun ActivityDetails(screen: ScreenState, activity: ActivityState, sourc
                 val (start, end) = dayBounds(date, ZoneId.systemDefault())
                 val points = snapshot.points.filter { it.at in start until end }
                 if (points.isNotEmpty()) Card(colors = CardDefaults.cardColors(containerColor = Calm.Heart)) {
-                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Recorded heart rate", fontWeight = FontWeight.SemiBold)
                         Text(snapshot.name, style = MaterialTheme.typography.bodySmall)
                         key(source, date, snapshot.events.firstOrNull()?.event?.wearable?.deviceId) {
@@ -94,8 +94,8 @@ internal fun ActivityDetails(screen: ScreenState, activity: ActivityState, sourc
             if (day != null && request.kind == Kind.PHONE_BATTERY && !request.fullHistory) item {
                 val events = phoneBatteryEvents(screen.copy(phoneBatteries = day.batteryRecords), source)
                 val points = batteryPoints(events)
-                if (points.isNotEmpty()) Card(colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color.White)) {
-                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (points.isNotEmpty()) Card(border = Calm.Border) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Recorded phone battery", fontWeight = FontWeight.SemiBold)
                         key(source, date) {
                             ReadingGraph(points, points.first().at, maxOf(points.first().at + 60_000, points.last().at),
@@ -151,9 +151,9 @@ private fun ActivityRecord(stored: StoredEvent, screen: ScreenState, onLocation:
             "${it.metric.label}: ${formatWearable(it.metric, it.latest)}"
         }.orEmpty().ifBlank { "Device information · Tap for details" }
     }
-    Card(colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color.White)) {
+    Card(border = Calm.Border) {
         Column(Modifier.fillMaxWidth().testTag("activity-${event.sequence}")
-            .clickable(onClickLabel = if (expanded) "Hide details" else "Show details") { expanded = !expanded }.padding(14.dp)) {
+            .clickable(onClickLabel = if (expanded) "Hide details" else "Show details") { expanded = !expanded }.padding(16.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(DateTimeFormatter.ofPattern("HH:mm").withZone(ZoneId.systemDefault()).format(Instant.ofEpochMilli(event.occurredAt)),
                     style = MaterialTheme.typography.bodySmall)

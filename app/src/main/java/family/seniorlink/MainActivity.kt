@@ -161,11 +161,11 @@ internal fun SeniorScreen(model: MainViewModel, updates: UpdateViewModel) {
                         3 -> {
                             Panel("Background updates") {
                                 Toggle(if (state.settings.role == Role.SHARER) "Sharing" else "Receive in background",
-                                    enabledRole == state.settings.role, { enabled -> if (enabled) model.start() else model.pause() })
-                                Text(if (state.settings.role == Role.SHARER)
+                                    enabledRole == state.settings.role, { enabled -> if (enabled) model.start() else model.pause() },
+                                    description = if (state.settings.role == Role.SHARER)
                                     "On by default after connecting a caregiver. Shares only your selected features, including while this app is closed. Turn off to pause sharing."
                                     else "On by default after connecting a sharing phone. Receives updates while this app is closed. Turn off to receive only while the app is open.")
-                                Text("A notification stays visible while active. A pause stays in effect until you turn this switch on again.")
+                                Note("A notification stays visible while active. A pause stays in effect until you turn this switch on again.")
                             }
                             UpdateSettings(checkingUpdate, updateResult, updates::checkForUpdates)
                             if (state.settings.role == Role.SHARER) {
@@ -177,11 +177,11 @@ internal fun SeniorScreen(model: MainViewModel, updates: UpdateViewModel) {
                             MailboxSettings(state, model)
                             BackgroundSettings(state, model)
                             Panel("Privacy and reliability") {
-                                Text("History stays on these phones for up to 7 days, capped at 10,000 events per source. The daily summary groups retained records by type. Open full history to filter and load earlier updates.")
-                                Text("The Location map shows up to 1,000 retained fixes per phone. Map tiles come from OpenStreetMap; the tile service sees your IP address and the map areas you view.")
-                                Text("Wearable readings require the same updated SeniorLink version on both phones. Bluetooth collection works only within range; missed readings cannot be recovered later.")
-                                Text("iroh encrypts connections end to end. Public discovery and relays may see connection metadata, not message contents.")
-                                Text("Enabled sharing and background receiving resume after interruptions or reboot when Android allows. Sleep and network restrictions can delay updates. After Android Force stop, reopen SeniorLink. Pause in SeniorLink keeps background work off until you enable it again.")
+                                Note("History stays on these phones for up to 7 days, capped at 10,000 events per source. The daily summary groups retained records by type. Open full history to filter and load earlier updates.")
+                                Note("The Location map shows up to 1,000 retained fixes per phone. Map tiles come from OpenStreetMap; the tile service sees your IP address and the map areas you view.")
+                                Note("Wearable readings require the same updated SeniorLink version on both phones. Bluetooth collection works only within range; missed readings cannot be recovered later.")
+                                Note("iroh encrypts connections end to end. Public discovery and relays may see connection metadata, not message contents.")
+                                Note("Enabled sharing and background receiving resume after interruptions or reboot when Android allows. Sleep and network restrictions can delay updates. After Android Force stop, reopen SeniorLink. Pause in SeniorLink keeps background work off until you enable it again.")
                                 OutlinedButton(onClick = {
                                     context.startActivity(Intent(AndroidSettings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}")))
                                 }) { Text("Android app settings") }
@@ -255,11 +255,11 @@ private fun Phones(state: ScreenState, model: MainViewModel) {
     Panel("Paired phones") {
         if (state.peers.isEmpty()) Text("No paired phones")
         state.peers.forEach { peer ->
-            Text(peer.name, fontWeight = FontWeight.Bold)
-            Text("Last receipt: ${formatTime(peer.lastContact)}")
+            Text(peer.name, style = MaterialTheme.typography.titleMedium)
+            Note("Last receipt: ${formatTime(peer.lastContact)}")
             TextButton(onClick = { removing = peer }) { Text("Remove ${peer.name}") }
         }
-        Text("Removing a caregiver stops future access. It cannot erase information already received on that phone.")
+        Note("Removing a caregiver stops future access. It cannot erase information already received on that phone.")
     }
     removing?.let { peer ->
         AlertDialog(onDismissRequest = { removing = null }, title = { Text("Remove ${peer.name}?") },
@@ -275,33 +275,33 @@ private fun SharingSettings(state: ScreenState, saving: Boolean, telegramStatus:
     var token by remember { mutableStateOf("") }
     Panel("Choose what to share") {
         Text("Save changes to apply them while sharing. Android may ask for permission before enabling a feature.")
-        Toggle("Share phone battery", draft.phoneBattery, { change(draft.copy(phoneBattery = it)) }, !saving)
-        Text("Share this phone’s battery percentage and charging state about every 5 minutes while sharing is active.")
-        Toggle("Observe phone unlocks", draft.unlock, { change(draft.copy(unlock = it)) }, !saving)
-        Text("Best-effort Android unlock broadcasts, not a complete audit log.")
-        Toggle("Share location", draft.location, { change(draft.copy(location = it)) }, !saving)
-        Text("Approximately every 15 minutes when Android provides a fix. Network location is preferred to reduce battery use; GPS is a fallback.")
+        Toggle("Share phone battery", draft.phoneBattery, { change(draft.copy(phoneBattery = it)) }, !saving,
+            "Share this phone’s battery percentage and charging state about every 5 minutes while sharing is active.")
+        Toggle("Observe phone unlocks", draft.unlock, { change(draft.copy(unlock = it)) }, !saving,
+            "Best-effort Android unlock broadcasts, not a complete audit log.")
+        Toggle("Share location", draft.location, { change(draft.copy(location = it)) }, !saving,
+            "Approximately every 15 minutes when Android provides a fix. Network location is preferred to reduce battery use; GPS is a fallback.")
         Toggle("Share incoming SMS from selected senders", draft.sms, { change(draft.copy(sms = it)) }, !saving)
         if (draft.sms) {
             OutlinedTextField(draft.smsSenders, { change(draft.copy(smsSenders = it.take(2000))) },
                 label = { Text("Exact senders, one per line") }, enabled = !saving, modifier = Modifier.fillMaxWidth())
-            Text("Use full numbers, including country code, or exact sender names. Wildcards are not accepted.")
-            Toggle("Also share SMS message bodies", draft.smsBodies, { change(draft.copy(smsBodies = it)) }, !saving)
-            Text("Bodies can contain private conversations and banking details. Likely codes are withheld, but filtering cannot detect every secret.")
+            Note("Use full numbers, including country code, or exact sender names. Wildcards are not accepted.")
+            Toggle("Also share SMS message bodies", draft.smsBodies, { change(draft.copy(smsBodies = it)) }, !saving,
+                "Bodies can contain private conversations and banking details. Likely codes are withheld, but filtering cannot detect every secret.")
         }
     }
     WearableSettings(draft, !saving, model.wearableScanner, change)
     Panel("Optional Telegram output") {
-        Toggle("Forward enabled updates to Telegram", draft.telegram, { change(draft.copy(telegram = it)) }, !saving)
-        Text("Telegram bot/channel messages are NOT end-to-end encrypted. Only this sharing phone posts. Network retries can occasionally duplicate a post.")
+        Toggle("Forward enabled updates to Telegram", draft.telegram, { change(draft.copy(telegram = it)) }, !saving,
+            "Telegram bot/channel messages are NOT end-to-end encrypted. Only this sharing phone posts. Network retries can occasionally duplicate a post.")
         OutlinedTextField(token, { token = it.take(160) },
             label = { Text(if (state.tokenSaved) "New bot token (leave blank to keep saved)" else "Bot token") },
             visualTransformation = PasswordVisualTransformation(), enabled = !saving,
             modifier = Modifier.fillMaxWidth(), singleLine = true)
         OutlinedTextField(draft.telegramChat, { change(draft.copy(telegramChat = it.take(100))) },
             label = { Text("Chat/channel ID or @channel") }, enabled = !saving, modifier = Modifier.fillMaxWidth(), singleLine = true)
-        Text("The bot needs permission to post to the channel. Token is encrypted locally and never included in pairing codes.")
-        Text("$telegramStatus • ${state.pendingTelegram} queued")
+        Note("The bot needs permission to post to the channel. Token is encrypted locally and never included in pairing codes.")
+        Note("$telegramStatus • ${state.pendingTelegram} queued")
         OutlinedButton(onClick = model::testTelegram, enabled = state.tokenSaved && draft == state.settings && token.isBlank()) {
             Text("Send test to saved destination")
         }
@@ -309,7 +309,7 @@ private fun SharingSettings(state: ScreenState, saving: Boolean, telegramStatus:
     Button(onClick = { model.save(draft, token); token = "" }, enabled = !saving, modifier = Modifier.fillMaxWidth()) {
         Text("Save settings")
     }
-    Text("If Sharing is paused, saving keeps it paused. Turn Sharing on when you want to resume.")
+    Note("If Sharing is paused, saving keeps it paused. Turn Sharing on when you want to resume.")
 }
 
 @Composable
@@ -350,26 +350,35 @@ internal fun EventCard(stored: StoredEvent, peers: List<Peer>, onLocation: () ->
 
 @Composable
 internal fun Panel(title: String, content: @Composable ColumnScope.() -> Unit) {
-    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+    Card(Modifier.fillMaxWidth(), border = family.seniorlink.ui.Calm.Border) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(title, style = MaterialTheme.typography.titleLarge)
             content()
         }
     }
 }
 
 @Composable
-internal fun Toggle(label: String, checked: Boolean, change: (Boolean) -> Unit, enabled: Boolean = true) {
+internal fun Toggle(label: String, checked: Boolean, change: (Boolean) -> Unit, enabled: Boolean = true, description: String? = null) {
     Row(
-        Modifier.fillMaxWidth().toggleable(
+        Modifier.fillMaxWidth().heightIn(min = 48.dp).toggleable(
             value = checked, enabled = enabled, role = androidx.compose.ui.semantics.Role.Switch,
             onValueChange = change,
         ),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
     ) {
-        Text(label, Modifier.weight(1f).padding(top = 10.dp), style = MaterialTheme.typography.bodyLarge)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(label, style = MaterialTheme.typography.bodyLarge)
+            description?.let { Note(it) }
+        }
         Switch(checked = checked, onCheckedChange = null, enabled = enabled)
     }
+}
+
+/** Supporting detail under a setting or statement. */
+@Composable
+internal fun Note(text: String) {
+    Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 internal fun formatTime(time: Long): String = if (time == 0L) "Never" else

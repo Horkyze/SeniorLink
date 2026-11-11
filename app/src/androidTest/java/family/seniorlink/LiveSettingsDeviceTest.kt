@@ -65,7 +65,7 @@ class LiveSettingsDeviceTest {
                         inbox.updateSettings(Settings(role = Role.CAREGIVER), id)
                         inbox.addPeer(app.publicId, "Synthetic source", id)
                         app.store.addPeer(id, "Synthetic caregiver", app.publicId)
-                        val receiver = launch { IrohSync.receive(secret, inbox, { 500 }) { _, _ -> } }
+                        val receiver = launch { IrohSync.receive(secret, inbox, { delay(500) }) { _, _ -> } }
                         try {
                             while (inbox.phoneBattery(app.publicId) == null) delay(100)
                             assertEquals(saved, inbox.phoneBattery(app.publicId)!!.event)

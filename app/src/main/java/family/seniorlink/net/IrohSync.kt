@@ -135,7 +135,7 @@ object IrohSync {
     suspend fun receive(
         secret: ByteArray,
         store: Store,
-        pollMs: () -> Long = { 15_000L },
+        idle: suspend () -> Unit,
         setup: (suspend (Endpoint, String) -> Unit)? = null,
         status: (String, String) -> Unit,
     ): Unit = supervisorScope {
@@ -148,7 +148,7 @@ object IrohSync {
                 for (peer in peers) if (jobs[peer]?.isActive != true) {
                     jobs[peer] = launch {
                         if (setup != null) launch {
-                            while (isActive && store.approved(peer)) { setup(endpoint, peer); delay(15_000) }
+                            while (isActive && store.approved(peer)) { setup(endpoint, peer); idle() }
                         }
                         var backoff = 3_000L
                         while (isActive && store.approved(peer)) {
@@ -170,7 +170,7 @@ object IrohSync {
                                 }
                                 status(peer, if (more) "Fetching history…" else "Up to date")
                                 backoff = 3_000
-                                if (!more) delay(pollMs())
+                                if (!more) idle()
                             } catch (e: CancellationException) {
                                 // A per-attempt timeout is recoverable; lifecycle cancellation is not.
                                 currentCoroutineContext().ensureActive()
